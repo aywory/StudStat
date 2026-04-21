@@ -1,260 +1,302 @@
 /**
- * app.js — Main controller
- * Routing · Theme · File prompt · Sidebar · Semesters
+ * app.js — Router, theme, sidebar, file management
+ *
+ * THEME SYSTEM
+ * ─────────────
+ * BASE_THEMES  : always shown as coloured dots in header
+ * EXTRA_THEMES : shown in "···" dropdown (add more as you create css files)
+ *
+ * To add a theme:
+ *   1. Create  css/themes/my_theme.css  with :root[data-theme="my_theme"] { … }
+ *   2. Add a <link> to it in index.html
+ *   3. Push an entry into EXTRA_THEMES below
  */
 
 const App = (() => {
-  let _currentView  = null;
-  let _currentSemId = null;
 
-  /* BASE themes always shown as dots; extras in dropdown */
+  /* ── Theme registry ─────────────────────────── */
   const BASE_THEMES = [
-    { id: 'dark',  label: 'Тёмная',  bg: '#111', border: '#444' },
-    { id: 'white', label: 'Светлая', bg: '#f0f0f0', border: '#ccc' },
-  ];
-  /* Extra themes go here — add more as you create them */
-  const EXTRA_THEMES = [
-    // { id: 'glassmorphism', label: 'Glassmorphism', bg: 'rgba(120,200,255,0.3)', border: '#adf' },
+    { id: 'dark',  label: 'Тёмная',  bg: '#111111', border: '#3a3a3a' },
+    { id: 'white', label: 'Светлая', bg: '#f0f0f0',  border: '#cccccc' },
   ];
 
-  /* ── Init ──────────────────────────────────── */
+  const EXTRA_THEMES = [
+    { id: 'glassmorphism', label: 'Glassmorphism', bg: 'linear-gradient(135deg,#6ec6ff,#b388ff)', border: '#aad4f5' },
+    // add more here as you create theme files:
+    // { id: 'solarized', label: 'Solarized', bg: '#002b36', border: '#073642' },
+  ];
+
+  /* ── State ──────────────────────────────────── */
+  let _view  = null;
+  let _semId = null;
+
+  /* ── Init ───────────────────────────────────── */
   async function init() {
     _applyTheme(localStorage.getItem('uchet_theme') || 'dark');
-    _buildHeader();
     _buildModalShell();
+    _buildHeader();           // header always visible
 
-    /* Try to open last file automatically */
+    /* Try silent auto-open */
     const auto = await Storage.tryAutoOpen();
+
     if (auto.ok) {
-      _hideFilePrompt();
+      /* File opened silently — go straight to app */
       _boot();
       return;
     }
 
-    /* Show file prompt — but if we know the last file name, show it */
-    _showFilePrompt(auto.handle ? auto : null);
+    if (auto.needsGesture) {
+      /* Permission expired — need ONE click to restore it.
+         Show a minimal overlay asking just that click. */
+      _showReVerifyPrompt(auto);
+      return;
+    }
+
+    /* No stored file at all */
+    _showFirstRunPrompt();
 
     window.addEventListener('beforeunload', () => Storage.saveNow());
   }
 
-  /* ── File prompt ───────────────────────────── */
-  function _showFilePrompt(pendingAuto) {
-    const prompt = document.getElementById('file-prompt');
-    prompt.style.display = 'flex';
+  /* ── File prompts ───────────────────────────── */
 
-    const lastName = Storage.getSavedFileName();
+  function _showReVerifyPrompt({ handle, name }) {
+    const fp = document.getElementById('file-prompt');
+    fp.style.display = 'flex';
+    fp.innerHTML = `
+      <div style="font-size:3rem">📒</div>
+      <h1>Учёт работ</h1>
+      <p>Последний файл: <strong>${_esc(name)}</strong><br>
+         Браузер требует подтверждения доступа.</p>
+      <div class="file-prompt-actions">
+        <button class="btn btn-primary btn-lg" id="fp-reverify">🔓 Открыть «${_esc(name)}»</button>
+        <button class="btn btn-ghost  btn-lg" id="fp-other">Выбрать другой файл</button>
+      </div>`;
 
-    /* If we have a stored handle but need re-permission — show a dedicated button */
-    if (pendingAuto?.handle && lastName) {
-      const hint = document.getElementById('fp-hint');
-      if (hint) {
-        hint.innerHTML = `Последний файл: <strong>${lastName}</strong>`;
-        hint.style.display = 'block';
-      }
-      const reopenBtn = document.getElementById('fp-reopen');
-      if (reopenBtn) {
-        reopenBtn.style.display = 'inline-flex';
-        reopenBtn.textContent = `🔄 Открыть «${lastName}»`;
-        reopenBtn.addEventListener('click', async () => {
-          const res = await Storage.reVerifyHandle(pendingAuto.handle);
-          if (res.ok) { _hideFilePrompt(); _boot(); }
-          else UI.toast('Не удалось получить доступ к файлу', 'error');
-        });
-      }
-    }
+    document.getElementById('fp-reverify').addEventListener('click', async () => {
+      const res = await Storage.reVerify(handle);
+      if (res.ok) { fp.style.display='none'; _boot(); }
+      else UI.toast('Нет доступа к файлу', 'error');
+    });
+    document.getElementById('fp-other').addEventListener('click', async () => {
+      await Storage.forgetFile();
+      _showFirstRunPrompt();
+    });
+  }
 
-    document.getElementById('fp-open')?.addEventListener('click', async () => {
+  function _showFirstRunPrompt() {
+    const fp = document.getElementById('file-prompt');
+    fp.style.display = 'flex';
+    fp.innerHTML = `
+      <div style="font-size:3rem">📒</div>
+      <h1>Учёт работ</h1>
+      <p>Все данные хранятся локально в JSON-файле на вашем компьютере.<br>
+         Выберите существующий файл или создайте новый.</p>
+      <div class="file-prompt-actions">
+        <button class="btn btn-primary btn-lg" id="fp-open">📂 Открыть файл</button>
+        <button class="btn btn-ghost   btn-lg" id="fp-create">✨ Создать новый</button>
+      </div>
+      <p style="margin-top:1rem;font-size:0.72rem;opacity:0.4">
+        File System Access API — данные не покидают ваш компьютер.
+      </p>`;
+
+    document.getElementById('fp-open').addEventListener('click', async () => {
       const res = await Storage.openFile();
-      if (res.ok) { _hideFilePrompt(); _boot(); }
-      else if (!res.aborted) UI.toast('Ошибка: ' + (res.error || ''), 'error');
+      if (res.ok) { fp.style.display='none'; _boot(); }
+      else if (!res.aborted) UI.toast('Ошибка: ' + (res.error||''), 'error');
     });
-
-    document.getElementById('fp-create')?.addEventListener('click', async () => {
+    document.getElementById('fp-create').addEventListener('click', async () => {
       const res = await Storage.createFile();
-      if (res.ok) { _hideFilePrompt(); _boot(); }
-      else if (!res.aborted) UI.toast('Ошибка: ' + (res.error || ''), 'error');
+      if (res.ok) { fp.style.display='none'; _boot(); }
+      else if (!res.aborted) UI.toast('Ошибка: ' + (res.error||''), 'error');
     });
   }
 
-  function _hideFilePrompt() {
-    const p = document.getElementById('file-prompt');
-    if (p) p.style.display = 'none';
-  }
-
-  /* ── Boot ──────────────────────────────────── */
+  /* ── Boot ───────────────────────────────────── */
   function _boot() {
     _buildSidebar();
     navigate('dashboard');
+    window.addEventListener('beforeunload', () => Storage.saveNow());
   }
 
-  /* ── Navigation ────────────────────────────── */
-  function navigate(view, semesterId = null) {
-    _currentView  = view;
-    _currentSemId = semesterId;
+  /* ── Navigation ─────────────────────────────── */
+  function navigate(view, semId = null) {
+    _view  = view;
+    _semId = semId;
     _buildSidebar();
-    _renderMain();
-  }
-
-  function _renderMain() {
     const main = document.getElementById('main');
     main.innerHTML = '';
-    switch (_currentView) {
-      case 'dashboard':  DashboardView.mount(main);                                break;
-      case 'records':    if (_currentSemId) RecordsView.mount(_currentSemId, main); break;
-      case 'analytics':  if (_currentSemId) AnalyticsView.mount(_currentSemId, main); break;
-      case 'semesters':  _renderSemestersManager(main);                            break;
+    switch (view) {
+      case 'dashboard':  DashboardView.mount(main);          break;
+      case 'records':    RecordsView.mount(semId, main);     break;
+      case 'analytics':  AnalyticsView.mount(semId, main);   break;
+      case 'semesters':  _mountSemesters(main);               break;
     }
   }
 
-  /* ── Header ────────────────────────────────── */
+  /* ── Header ─────────────────────────────────── */
   function _buildHeader() {
-    const header = document.getElementById('header');
-    header.innerHTML = '';
+    const h = document.getElementById('header');
+    h.innerHTML = '';
 
     const logo = document.createElement('div');
     logo.className = 'logo';
     logo.innerHTML = '📒 УЧ<span>ЁТ</span>';
-    header.appendChild(logo);
+    h.appendChild(logo);
 
     const right = document.createElement('div');
     right.className = 'header-right';
 
-    /* Theme picker */
-    right.appendChild(_buildThemePicker());
+    right.appendChild(_makeThemePicker());
 
-    /* Save button */
-    const saveBtn = UI.Button({
-      text: '💾 Сохранить', variant: 'ghost', size: 'sm',
-      title: 'Сохранить в файл немедленно',
+    right.appendChild(UI.Button({
+      text: '💾', variant: 'ghost', size: 'sm', title: 'Сохранить немедленно',
       onClick: async () => { await Storage.saveNow(); UI.toast('Сохранено ✓'); }
-    });
-    right.appendChild(saveBtn);
+    }));
 
-    /* Change file button */
-    const changeBtn = UI.Button({
+    right.appendChild(UI.Button({
       text: '📂', variant: 'ghost', size: 'sm', title: 'Сменить файл',
       onClick: async () => {
         await Storage.forgetFile();
         location.reload();
       }
-    });
-    right.appendChild(changeBtn);
+    }));
 
-    header.appendChild(right);
+    h.appendChild(right);
   }
 
-  /* ── Theme picker ──────────────────────────── */
-  function _buildThemePicker() {
-    const current = document.documentElement.getAttribute('data-theme');
+  /* ── Theme picker ────────────────────────────── */
+  function _makeThemePicker() {
+    const cur  = document.documentElement.getAttribute('data-theme');
     const wrap = document.createElement('div');
     wrap.className = 'theme-picker';
     wrap.style.position = 'relative';
 
-    /* Base theme dots */
+    /* Base dots */
     BASE_THEMES.forEach(t => {
       const dot = document.createElement('div');
-      dot.className = 'theme-dot' + (current === t.id ? ' active' : '');
-      dot.style.cssText = `background:${t.bg};border:2px solid ${t.border}`;
+      dot.className = 'theme-dot' + (cur === t.id ? ' active' : '');
+      dot.style.background = t.bg;
+      dot.style.border = `2px solid ${t.border}`;
       dot.title = t.label;
-      dot.addEventListener('click', () => _switchTheme(t.id, wrap));
+      dot.addEventListener('click', () => {
+        _applyTheme(t.id);
+        _refreshPickerState(wrap);
+      });
       wrap.appendChild(dot);
     });
 
-    /* "More" pill button — only show if there are extra themes */
-    const allExtra = EXTRA_THEMES;
-    if (allExtra.length > 0) {
-      const moreBtn = document.createElement('div');
-      moreBtn.className = 'theme-more-btn' + (allExtra.some(t => t.id === current) ? ' active' : '');
-      moreBtn.textContent = '···';
-      moreBtn.title = 'Другие темы';
-      moreBtn.addEventListener('click', e => {
-        e.stopPropagation();
-        _toggleThemeDropdown(moreBtn, wrap, allExtra);
-      });
-      wrap.appendChild(moreBtn);
-    }
+    /* "···" pill for extra themes — always shown so user knows there are more */
+    const pill = document.createElement('div');
+    pill.className = 'theme-more-btn';
+    pill.textContent = '···';
+    pill.title = 'Другие темы';
+    pill.addEventListener('click', e => {
+      e.stopPropagation();
+      _toggleExtraDropdown(pill, wrap);
+    });
+    wrap.appendChild(pill);
+    _refreshPickerState(wrap);     // set initial active states
 
     return wrap;
   }
 
-  function _switchTheme(id, pickerWrap) {
-    _applyTheme(id);
-    /* Update active states on dots */
-    pickerWrap.querySelectorAll('.theme-dot').forEach((dot, i) => {
-      dot.classList.toggle('active', BASE_THEMES[i]?.id === id);
-    });
-    const moreBtn = pickerWrap.querySelector('.theme-more-btn');
-    if (moreBtn) moreBtn.classList.toggle('active', EXTRA_THEMES.some(t => t.id === id));
-    /* Close dropdown if open */
-    pickerWrap.querySelector('.theme-dropdown')?.remove();
+  function _refreshPickerState(wrap) {
+    const cur  = document.documentElement.getAttribute('data-theme');
+    const dots = wrap.querySelectorAll('.theme-dot');
+    dots.forEach((d, i) => d.classList.toggle('active', BASE_THEMES[i]?.id === cur));
+    const pill = wrap.querySelector('.theme-more-btn');
+    if (pill) pill.classList.toggle('active', EXTRA_THEMES.some(t => t.id === cur));
   }
 
-  function _toggleThemeDropdown(btn, wrap, themes) {
+  function _toggleExtraDropdown(pill, wrap) {
     const existing = wrap.querySelector('.theme-dropdown');
-    if (existing) { existing.remove(); btn.classList.remove('active'); return; }
+    if (existing) { existing.remove(); return; }
 
-    const current = document.documentElement.getAttribute('data-theme');
-    const dd = document.createElement('div');
+    const cur = document.documentElement.getAttribute('data-theme');
+    const dd  = document.createElement('div');
     dd.className = 'theme-dropdown';
 
-    themes.forEach(t => {
+    /* List ALL themes in dropdown (including base) for discoverability */
+    const all = [...BASE_THEMES, ...EXTRA_THEMES];
+    all.forEach(t => {
       const item = document.createElement('div');
-      item.className = 'theme-dropdown-item' + (t.id === current ? ' active' : '');
+      item.className = 'theme-dropdown-item' + (t.id === cur ? ' active' : '');
+
       const swatch = document.createElement('div');
       swatch.className = 'theme-dropdown-swatch';
-      swatch.style.background = t.bg || '#888';
+      // handle gradient bg for swatch
+      if (t.bg.includes('gradient')) {
+        swatch.style.backgroundImage = t.bg;
+      } else {
+        swatch.style.background = t.bg;
+      }
+      swatch.style.borderColor = t.border;
+
       item.appendChild(swatch);
-      item.insertAdjacentText('beforeend', t.label);
-      item.addEventListener('click', () => { _switchTheme(t.id, wrap); });
+      item.appendChild(document.createTextNode(t.label));
+      item.addEventListener('click', () => {
+        _applyTheme(t.id);
+        _refreshPickerState(wrap);
+        dd.remove();
+      });
       dd.appendChild(item);
     });
 
     wrap.appendChild(dd);
-    btn.classList.add('active');
 
-    /* Close on outside click */
-    const close = e => { if (!wrap.contains(e.target)) { dd.remove(); btn.classList.remove('active'); document.removeEventListener('click', close); } };
+    const close = e => {
+      if (!wrap.contains(e.target)) { dd.remove(); document.removeEventListener('click', close); }
+    };
     setTimeout(() => document.addEventListener('click', close), 0);
   }
 
-  /* ── Sidebar ───────────────────────────────── */
-  function _buildSidebar() {
-    const sidebar = document.getElementById('sidebar');
-    sidebar.innerHTML = '';
+  function _applyTheme(id) {
+    document.documentElement.setAttribute('data-theme', id);
+    localStorage.setItem('uchet_theme', id);
+  }
 
-    _nav(sidebar, 'Главная');
-    sidebar.appendChild(_navItem('🏠', 'Обзор',    'dashboard', null));
-    sidebar.appendChild(_navItem('⚙', 'Семестры', 'semesters', null));
+  /* ── Sidebar ─────────────────────────────────── */
+  function _buildSidebar() {
+    const sb = document.getElementById('sidebar');
+    sb.innerHTML = '';
+
+    _navSection(sb, 'Главная');
+    sb.appendChild(_navItem('🏠', 'Обзор',    'dashboard', null));
+    sb.appendChild(_navItem('⚙', 'Семестры', 'semesters', null));
 
     const sems = Storage.getSemesters();
     if (sems.length) {
-      _divider(sidebar);
-      _nav(sidebar, 'Учёт');
-      sems.forEach(s => sidebar.appendChild(_navItem('📋', s.label, 'records',   s.id)));
-      _divider(sidebar);
-      _nav(sidebar, 'Аналитика');
-      sems.forEach(s => sidebar.appendChild(_navItem('📊', s.label, 'analytics', s.id)));
+      _divider(sb);
+      _navSection(sb, 'Учёт');
+      sems.forEach(s => sb.appendChild(_navItem('📋', s.label, 'records',   s.id)));
+      _divider(sb);
+      _navSection(sb, 'Аналитика');
+      sems.forEach(s => sb.appendChild(_navItem('📊', s.label, 'analytics', s.id)));
     }
   }
 
-  function _nav(sb, text) { const d = document.createElement('div'); d.className='nav-section'; d.textContent=text; sb.appendChild(d); }
-  function _divider(sb)   { const d = document.createElement('div'); d.className='sidebar-divider'; sb.appendChild(d); }
-
+  function _navSection(sb, t) {
+    const d = document.createElement('div'); d.className='nav-section'; d.textContent=t; sb.appendChild(d);
+  }
+  function _divider(sb) {
+    const d = document.createElement('div'); d.className='sidebar-divider'; sb.appendChild(d);
+  }
   function _navItem(icon, text, view, semId) {
     const el = document.createElement('div');
-    el.className = 'nav-item' + (_currentView===view && _currentSemId===semId ? ' active' : '');
+    el.className = 'nav-item' + (_view===view && _semId===semId ? ' active' : '');
     el.innerHTML = `<span class="nav-icon">${icon}</span><span>${_esc(text)}</span>`;
     el.addEventListener('click', () => navigate(view, semId));
     return el;
   }
 
-  /* ── Semesters manager ─────────────────────── */
-  function _renderSemestersManager(container) {
+  /* ── Semesters ───────────────────────────────── */
+  function _mountSemesters(container) {
     const wrap = document.createElement('div');
-    const ph = document.createElement('div');
+    const ph   = document.createElement('div');
     ph.className = 'page-header';
     ph.innerHTML = `<div class="page-header-left"><h2>Семестры</h2><p class="mt-sm">Управление учебными периодами</p></div>`;
-    ph.appendChild(UI.Button({ text: '+ Новый семестр', variant: 'primary', onClick: _openSemForm }));
+    ph.appendChild(UI.Button({ text:'+ Новый семестр', variant:'primary', onClick:_semForm }));
     wrap.appendChild(ph);
 
     const sems = Storage.getSemesters();
@@ -265,15 +307,14 @@ const App = (() => {
       grid.className = 'grid-3 mt-md';
       sems.forEach(sem => {
         const recs = Storage.getRecords(sem.id);
-        const sum  = recs.reduce((s,r) => s+(r.price||0), 0);
+        const sum  = recs.reduce((s,r)=>s+(r.price||0),0);
         const card = document.createElement('div');
         card.className = 'card';
-        card.innerHTML = `<div class="card-header"><h3>${_esc(sem.label)}</h3></div><p style="font-size:0.8rem;margin-bottom:0.75rem">${recs.length} работ · ${sum} ₴</p>`;
-        const acts = document.createElement('div');
-        acts.className = 'flex gap-sm';
+        card.innerHTML = `<div class="card-header"><h3>${_esc(sem.label)}</h3></div><p style="font-size:.8rem;margin-bottom:.75rem">${recs.length} работ · ${sum} ₴</p>`;
+        const acts = document.createElement('div'); acts.className='flex gap-sm';
         acts.appendChild(UI.Button({ text:'Учёт',      variant:'blue',   size:'sm', onClick:()=>navigate('records',   sem.id) }));
         acts.appendChild(UI.Button({ text:'Аналитика', variant:'ghost',  size:'sm', onClick:()=>navigate('analytics', sem.id) }));
-        acts.appendChild(UI.Button({ text:'✕',         variant:'danger', size:'sm', onClick:()=>_deleteSem(sem.id) }));
+        acts.appendChild(UI.Button({ text:'✕',         variant:'danger', size:'sm', onClick:()=>_delSem(sem.id) }));
         card.appendChild(acts);
         grid.appendChild(card);
       });
@@ -282,42 +323,35 @@ const App = (() => {
     container.appendChild(wrap);
   }
 
-  async function _openSemForm() {
-    const labelInp = UI.Input({ placeholder: '2 курс 1 семестр 2025г.' });
-    const yearInp  = UI.Input({ type:'number', value: new Date().getFullYear() });
+  async function _semForm() {
+    const labelInp = UI.Input({ placeholder:'2 курс 1 семестр 2025г.' });
+    const yearInp  = UI.Input({ type:'number', value:new Date().getFullYear() });
     const body = document.createElement('div');
-    body.style.cssText = 'display:flex;flex-direction:column;gap:1rem';
-    body.appendChild(UI.FormGroup({ label:'Название *', child:labelInp }));
-    body.appendChild(UI.FormGroup({ label:'Год',        child:yearInp  }));
-
-    const cancel = UI.Button({ text:'Отмена',  variant:'ghost',   onClick:()=>UI.closeModal() });
-    const ok     = UI.Button({ text:'Создать', variant:'primary', onClick:() => {
-      const label = labelInp.value.trim();
-      if (!label) { UI.toast('Введите название', 'error'); return; }
-      Storage.addSemester({ label, year:+yearInp.value||new Date().getFullYear() });
+    body.style.cssText='display:flex;flex-direction:column;gap:1rem';
+    body.appendChild(UI.FormGroup({label:'Название *',child:labelInp}));
+    body.appendChild(UI.FormGroup({label:'Год',       child:yearInp }));
+    const cancel=UI.Button({text:'Отмена', variant:'ghost',   onClick:()=>UI.closeModal()});
+    const ok    =UI.Button({text:'Создать',variant:'primary', onClick:()=>{
+      const label=labelInp.value.trim();
+      if(!label){UI.toast('Введите название','error');return;}
+      Storage.addSemester({label,year:+yearInp.value||new Date().getFullYear()});
       UI.closeModal(); UI.toast('Семестр создан'); navigate('semesters');
     }});
-    await UI.openModal({ title:'Новый семестр', bodyEl:body, footerActions:[cancel,ok] });
+    await UI.openModal({title:'Новый семестр',bodyEl:body,footerActions:[cancel,ok]});
   }
 
-  async function _deleteSem(id) {
+  async function _delSem(id) {
     const sem  = Storage.getSemesters().find(s=>s.id===id);
     const recs = Storage.getRecords(id);
-    const ok = await UI.confirmDialog({
-      message:`Удалить "${sem?.label}"? Вместе с ним ${recs.length} записей.`,
+    const ok   = await UI.confirmDialog({
+      message:`Удалить «${sem?.label}»? Вместе с ним ${recs.length} записей.`,
       confirmText:'Удалить', confirmVariant:'danger'
     });
     if (!ok) return;
-    Storage.deleteSemester(id); UI.toast('Семестр удалён','warn'); navigate('semesters');
+    Storage.deleteSemester(id); UI.toast('Удалено','warn'); navigate('semesters');
   }
 
-  /* ── Theme ─────────────────────────────────── */
-  function _applyTheme(id) {
-    document.documentElement.setAttribute('data-theme', id);
-    localStorage.setItem('uchet_theme', id);
-  }
-
-  /* ── Modal shell ───────────────────────────── */
+  /* ── Modal shell ─────────────────────────────── */
   function _buildModalShell() {
     if (document.getElementById('modal-backdrop')) return;
     const bd = document.createElement('div');
@@ -331,8 +365,8 @@ const App = (() => {
         <div class="modal-body"></div>
         <div class="modal-footer"></div>
       </div>`;
-    bd.addEventListener('click', e => { if (e.target===bd) UI.closeModal(); });
-    bd.querySelector('#modal-close').addEventListener('click', () => UI.closeModal());
+    bd.addEventListener('click', e => { if(e.target===bd) UI.closeModal(); });
+    bd.querySelector('#modal-close').addEventListener('click', ()=>UI.closeModal());
     document.body.appendChild(bd);
   }
 

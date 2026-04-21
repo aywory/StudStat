@@ -1,32 +1,209 @@
-:root[data-theme="glass"] {
-  /* ── Fonts (оставляем моноширинные) ── */
-  --font-display: 'JetBrains Mono', 'Fira Code', monospace;
-  --font-body:    'JetBrains Mono', 'Fira Code', monospace;
+/* ═══════════════════════════════════════════════════════
+   themes/glassmorphism.css
+   Full glassmorphism theme — overrides colors AND visual styles.
+   Uses backdrop-filter, translucent backgrounds, glow effects.
+   ═══════════════════════════════════════════════════════ */
 
-  /* ── Backgrounds (полупрозрачные, тёмная подложка) ── */
-  --bg-primary:   #0a0f14;                  /* глубокий фон под стеклом */
-  --bg-secondary: #10171f;
-  --bg-card:      rgba(18, 28, 38, 0.7);    /* стеклянная карточка */
-  --bg-sidebar:   rgba(10, 18, 26, 0.8);
-  --bg-header:    rgba(8, 16, 24, 0.75);
-  --bg-thead:     rgba(20, 34, 46, 0.6);
-  --bg-input:     rgba(255, 255, 255, 0.08);
-  --bg-hover:     rgba(255, 255, 255, 0.1);
-  --bg-row-hover: rgba(255, 255, 255, 0.06);
-  --bg-tooltip:   rgba(16, 26, 36, 0.95);
+/* ── Fonts ── */
+:root[data-theme="glassmorphism"] {
+  --font-display: 'JetBrains Mono', monospace;
+  --font-body:    'JetBrains Mono', monospace;
 
-  /* ── Borders (светлые полупрозрачные грани) ── */
-  --border:        rgba(255, 255, 255, 0.15);
-  --border-subtle: rgba(255, 255, 255, 0.08);
+  /* ── Accents ── */
+  --accent-yellow: #ffe066;
+  --accent-green:  #5fffb0;
+  --accent-red:    #ff6b8a;
+  --accent-blue:   #7eb8ff;
 
-  /* ── Text (яркий для контраста) ── */
-  --text-primary:   #ffffff;
-  --text-secondary: #cdd9e6;
-  --text-muted:     #8f9eb0;
+  /* ── Text ── */
+  --text-primary:   rgba(255,255,255,0.92);
+  --text-secondary: rgba(255,255,255,0.60);
+  --text-muted:     rgba(255,255,255,0.35);
 
-  /* ── Accents (насыщенные, хорошо читаются на стекле) ── */
-  --accent-yellow: #f5b82e;
-  --accent-green:  #3dd68c;
-  --accent-red:    #f46060;
-  --accent-blue:   #5291f0;
+  /* ── Borders ── */
+  --border:        rgba(255,255,255,0.15);
+  --border-subtle: rgba(255,255,255,0.07);
+
+  /* ── Backgrounds (translucent) ── */
+  --bg-primary:   transparent;
+  --bg-secondary: rgba(255,255,255,0.04);
+  --bg-card:      rgba(255,255,255,0.09);
+  --bg-sidebar:   rgba(255,255,255,0.06);
+  --bg-header:    rgba(20,10,40,0.55);
+  --bg-thead:     rgba(255,255,255,0.06);
+  --bg-input:     rgba(255,255,255,0.10);
+  --bg-hover:     rgba(255,255,255,0.10);
+  --bg-row-hover: rgba(255,255,255,0.06);
+  --bg-tooltip:   rgba(30,10,60,0.90);
+}
+
+/* ── Animated gradient body ── */
+:root[data-theme="glassmorphism"] body {
+  background:
+    radial-gradient(ellipse at 20% 30%,  rgba(100,60,220,.55) 0%, transparent 55%),
+    radial-gradient(ellipse at 80% 70%,  rgba(30,140,255,.45) 0%, transparent 55%),
+    radial-gradient(ellipse at 50% 100%, rgba(200,60,150,.35) 0%, transparent 55%),
+    #0a0618;
+  background-attachment: fixed;
+}
+
+/* Slow pulse animation on the gradient blobs */
+@keyframes blobShift {
+  0%,100% { background-position: 20% 30%, 80% 70%, 50% 100%; }
+  33%      { background-position: 25% 20%, 75% 80%, 55% 90%;  }
+  66%      { background-position: 15% 40%, 85% 60%, 45% 95%;  }
+}
+
+/* ── Glass surface mixin (applied to all panel-like elements) ── */
+:root[data-theme="glassmorphism"] .card,
+:root[data-theme="glassmorphism"] .modal,
+:root[data-theme="glassmorphism"] .stat-card,
+:root[data-theme="glassmorphism"] .table-wrapper {
+  background:    rgba(255,255,255,0.09);
+  border-color:  rgba(255,255,255,0.18);
+  backdrop-filter: blur(18px) saturate(1.6);
+  -webkit-backdrop-filter: blur(18px) saturate(1.6);
+  box-shadow: 0 4px 32px rgba(0,0,0,.30), inset 0 1px 0 rgba(255,255,255,.12);
+}
+
+/* Stat card accent lines pick up accents with glow */
+:root[data-theme="glassmorphism"] .stat-card.green::before  { background: var(--accent-green);  box-shadow: 0 0 8px var(--accent-green); }
+:root[data-theme="glassmorphism"] .stat-card.yellow::before { background: var(--accent-yellow); box-shadow: 0 0 8px var(--accent-yellow); }
+:root[data-theme="glassmorphism"] .stat-card.blue::before   { background: var(--accent-blue);   box-shadow: 0 0 8px var(--accent-blue); }
+:root[data-theme="glassmorphism"] .stat-card.red::before    { background: var(--accent-red);    box-shadow: 0 0 8px var(--accent-red); }
+
+/* ── Header ── */
+:root[data-theme="glassmorphism"] #header {
+  background: rgba(15,5,35,0.55);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom-color: rgba(255,255,255,0.12);
+  box-shadow: 0 1px 0 rgba(255,255,255,.07);
+}
+
+/* ── Sidebar ── */
+:root[data-theme="glassmorphism"] #sidebar {
+  background: rgba(255,255,255,0.05);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-right-color: rgba(255,255,255,0.10);
+}
+
+:root[data-theme="glassmorphism"] .nav-item:hover {
+  background: rgba(255,255,255,0.10);
+}
+:root[data-theme="glassmorphism"] .nav-item.active {
+  background: rgba(255,224,102,0.12);
+  border-left-color: var(--accent-yellow);
+  color: var(--accent-yellow);
+}
+
+/* ── Inputs ── */
+:root[data-theme="glassmorphism"] .input {
+  background: rgba(255,255,255,0.10);
+  border-color: rgba(255,255,255,0.18);
+  color: var(--text-primary);
+  backdrop-filter: blur(6px);
+}
+:root[data-theme="glassmorphism"] .input:focus {
+  border-color: var(--accent-yellow);
+  box-shadow: 0 0 0 3px rgba(255,224,102,.20);
+}
+
+/* ── Buttons ── */
+:root[data-theme="glassmorphism"] .btn-primary {
+  background: rgba(255,224,102,0.85);
+  box-shadow: 0 0 14px rgba(255,224,102,.35);
+  color: #1a1020;
+}
+:root[data-theme="glassmorphism"] .btn-primary:hover:not(:disabled) {
+  box-shadow: 0 0 22px rgba(255,224,102,.55);
+  filter: brightness(1.08);
+}
+:root[data-theme="glassmorphism"] .btn-ghost {
+  background: rgba(255,255,255,0.07);
+  border-color: rgba(255,255,255,0.18);
+  color: var(--text-secondary);
+  backdrop-filter: blur(4px);
+}
+:root[data-theme="glassmorphism"] .btn-ghost:hover:not(:disabled) {
+  background: rgba(255,255,255,0.14);
+  color: var(--text-primary);
+}
+:root[data-theme="glassmorphism"] .btn-blue {
+  background: rgba(126,184,255,0.80);
+  color: #0a0618;
+  box-shadow: 0 0 14px rgba(126,184,255,.35);
+}
+
+/* ── Table ── */
+:root[data-theme="glassmorphism"] thead th {
+  background: rgba(255,255,255,0.07);
+  color: rgba(255,255,255,0.50);
+}
+:root[data-theme="glassmorphism"] tbody tr:hover {
+  background: rgba(255,255,255,0.07);
+}
+
+/* ── Badges ── */
+:root[data-theme="glassmorphism"] .badge-closed  { background: rgba(95,255,176,.15); color: var(--accent-green); }
+:root[data-theme="glassmorphism"] .badge-partial { background: rgba(255,224,102,.15); color: var(--accent-yellow); }
+:root[data-theme="glassmorphism"] .badge-open    { background: rgba(255,107,138,.15); color: var(--accent-red); }
+
+/* ── Status pills ── */
+:root[data-theme="glassmorphism"] .pill-done-on {
+  background: rgba(95,255,176,.18);
+  border-color: var(--accent-green);
+  color: var(--accent-green);
+  box-shadow: 0 0 8px rgba(95,255,176,.3);
+}
+:root[data-theme="glassmorphism"] .pill-paid-on {
+  background: rgba(126,184,255,.18);
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+  box-shadow: 0 0 8px rgba(126,184,255,.3);
+}
+:root[data-theme="glassmorphism"] .pill-done-off,
+:root[data-theme="glassmorphism"] .pill-paid-off {
+  border-color: rgba(255,255,255,.18);
+  color: rgba(255,255,255,.35);
+}
+
+/* ── Logo glow ── */
+:root[data-theme="glassmorphism"] .logo span {
+  color: var(--accent-yellow);
+  text-shadow: 0 0 12px rgba(255,224,102,.7);
+}
+
+/* ── Active nav dot in theme picker ── */
+:root[data-theme="glassmorphism"] .theme-dot.active {
+  border-color: var(--accent-yellow) !important;
+  box-shadow: 0 0 8px rgba(255,224,102,.5);
+}
+
+/* ── Toast ── */
+:root[data-theme="glassmorphism"] .toast {
+  background: rgba(20,10,50,0.75);
+  backdrop-filter: blur(12px);
+  border-color: rgba(255,255,255,.15);
+}
+
+/* ── Modal ── */
+:root[data-theme="glassmorphism"] .modal {
+  background: rgba(20,10,50,0.75);
+  backdrop-filter: blur(24px) saturate(1.8);
+  -webkit-backdrop-filter: blur(24px) saturate(1.8);
+}
+:root[data-theme="glassmorphism"] .modal-header {
+  background: rgba(255,255,255,0.04);
+}
+
+/* ── Scrollbar ── */
+:root[data-theme="glassmorphism"] ::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,.18);
+}
+
+/* ── Grand total row ── */
+:root[data-theme="glassmorphism"] .grand-total {
+  background: rgba(255,224,102,.08);
 }
