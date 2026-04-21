@@ -1,0 +1,555 @@
+/* ═══════════════════════════════════════════════════════
+   themes/bioluminescent-bay-premium.css
+   Premium Glassmorphism — Дышащий океан, толстое стекло.
+   ═══════════════════════════════════════════════════════ */
+
+:root[data-theme="bioluminescent-bay-premium"] {
+  /* ── Theme Meta ── */
+  --theme-label:  'Bio Bay Premium';
+  --theme-swatch: 'radial-gradient(circle at 30% 40%, #0d2847, #051020, #020812)';
+
+  --font-display: 'Inter', system-ui, sans-serif;
+  --font-body:    'Inter', system-ui, sans-serif;
+
+  /* Премиальные, насыщенные но приглушенные акценты */
+  --accent-yellow: #b3e5d9;
+  --accent-green:  #7fdfc5;
+  --accent-red:    #ffa599;
+  --accent-blue:   #7cc8f4;
+
+  --text-primary:   rgba(235, 248, 255, 0.96);
+  --text-secondary: rgba(190, 225, 250, 0.75);
+  --text-muted:     rgba(140, 195, 235, 0.50);
+
+  /* Градиентные границы для эффекта стекла */
+  --border-glass:   rgba(255, 255, 255, 0.12);
+  --border-subtle:  rgba(255, 255, 255, 0.05);
+
+  --bg-primary:   #081220;
+  --bg-secondary: rgba(15, 32, 55, 0.35);
+  --bg-card:      rgba(18, 38, 65, 0.25);
+  --bg-sidebar:   rgba(8, 22, 42, 0.45);
+  --bg-header:    rgba(5, 15, 30, 0.65);
+  --bg-thead:     rgba(12, 28, 50, 0.35);
+  --bg-input:     rgba(10, 25, 45, 0.45);
+  --bg-hover:     rgba(120, 200, 240, 0.10);
+  --bg-row-hover: rgba(120, 200, 240, 0.06);
+  --bg-tooltip:   rgba(8, 20, 38, 0.98);
+}
+
+/* ═══════════════════════════════════════════════════════
+   ЖИВОЙ ФОН — ДРЕЙФУЮЩИЙ БИОЛЮМИНЕСЦЕНТНЫЙ ПЛАНКТОН
+   ═══════════════════════════════════════════════════════ */
+
+:root[data-theme="bioluminescent-bay-premium"] body {
+  background: #081220;
+  background-image: 
+    radial-gradient(circle at 25% 30%, rgba(30, 180, 230, 0.12) 0%, transparent 40%),
+    radial-gradient(circle at 75% 65%, rgba(70, 220, 200, 0.08) 0%, transparent 45%),
+    radial-gradient(circle at 50% 50%, rgba(120, 200, 240, 0.04) 0%, transparent 60%);
+  background-attachment: fixed;
+  position: relative;
+}
+
+/* Сложный дрейфующий планктон — несколько слоев с разной скоростью */
+:root[data-theme="bioluminescent-bay-premium"] body::before {
+  content: '';
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  
+  /* Слой 1: Крупные, медленные организмы */
+  background-image: 
+    radial-gradient(3px 3px at 15% 25%, rgba(100, 240, 220, 0.4), transparent 60%),
+    radial-gradient(5px 5px at 72% 48%, rgba(80, 210, 250, 0.3), transparent 70%),
+    radial-gradient(4px 4px at 88% 12%, rgba(110, 250, 210, 0.35), transparent 65%),
+    radial-gradient(6px 6px at 35% 75%, rgba(70, 240, 250, 0.25), transparent 75%),
+    radial-gradient(3px 3px at 55% 85%, rgba(130, 255, 230, 0.3), transparent 60%),
+    radial-gradient(4px 4px at 10% 65%, rgba(90, 220, 250, 0.28), transparent 70%),
+    radial-gradient(7px 7px at 92% 38%, rgba(60, 230, 240, 0.2), transparent 80%),
+    radial-gradient(3px 3px at 45% 15%, rgba(120, 250, 220, 0.32), transparent 65%),
+    radial-gradient(5px 5px at 62% 92%, rgba(80, 240, 230, 0.22), transparent 75%),
+    radial-gradient(4px 4px at 8% 42%, rgba(100, 230, 240, 0.3), transparent 68%);
+  background-repeat: no-repeat;
+  
+  /* Медленная гипнотическая анимация */
+  animation: planktonDrift 28s ease-in-out infinite alternate;
+}
+
+/* Второй слой — средние, быстрее */
+:root[data-theme="bioluminescent-bay-premium"] body::after {
+  content: '';
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  
+  background-image: 
+    radial-gradient(2px 2px at 28% 38%, rgba(120, 255, 230, 0.5), transparent 50%),
+    radial-gradient(2px 2px at 65% 55%, rgba(90, 230, 250, 0.45), transparent 55%),
+    radial-gradient(3px 3px at 82% 22%, rgba(130, 250, 220, 0.4), transparent 60%),
+    radial-gradient(2px 2px at 42% 68%, rgba(80, 240, 240, 0.48), transparent 50%),
+    radial-gradient(3px 3px at 18% 82%, rgba(110, 250, 230, 0.42), transparent 58%),
+    radial-gradient(2px 2px at 78% 78%, rgba(100, 240, 245, 0.46), transparent 52%),
+    radial-gradient(2px 2px at 52% 28%, rgba(120, 255, 235, 0.5), transparent 48%),
+    radial-gradient(3px 3px at 38% 48%, rgba(90, 235, 250, 0.44), transparent 56%),
+    radial-gradient(2px 2px at 12% 52%, rgba(110, 245, 225, 0.47), transparent 54%),
+    radial-gradient(2px 2px at 68% 12%, rgba(100, 250, 240, 0.43), transparent 50%),
+    radial-gradient(3px 3px at 48% 88%, rgba(80, 240, 245, 0.45), transparent 58%),
+    radial-gradient(2px 2px at 92% 62%, rgba(120, 250, 235, 0.4), transparent 52%);
+  background-repeat: no-repeat;
+  
+  /* Более быстрая анимация для глубины */
+  animation: planktonDriftFast 18s ease-in-out infinite alternate-reverse;
+}
+
+/* Анимации дрейфа */
+@keyframes planktonDrift {
+  0% { transform: translate(0, 0) scale(1); opacity: 0.7; }
+  25% { transform: translate(-15px, 10px) scale(1.02); opacity: 0.9; }
+  50% { transform: translate(8px, -12px) scale(0.98); opacity: 0.6; }
+  75% { transform: translate(-5px, 18px) scale(1.01); opacity: 0.85; }
+  100% { transform: translate(12px, -8px) scale(0.99); opacity: 0.75; }
+}
+
+@keyframes planktonDriftFast {
+  0% { transform: translate(0, 0) scale(1); opacity: 0.5; }
+  33% { transform: translate(20px, -15px) scale(1.03); opacity: 0.8; }
+  66% { transform: translate(-12px, 8px) scale(0.97); opacity: 0.55; }
+  100% { transform: translate(10px, 5px) scale(1.02); opacity: 0.7; }
+}
+
+/* ═══════════════════════════════════════════════════════
+   ПРЕМИАЛЬНЫЙ GLASSMORPHISM — СЛОЖНОЕ МНОГОСЛОЙНОЕ СТЕКЛО
+   ═══════════════════════════════════════════════════════ */
+
+/* Базовый эффект стекла с градиентной границей */
+:root[data-theme="bioluminescent-bay-premium"] .card,
+:root[data-theme="bioluminescent-bay-premium"] .modal,
+:root[data-theme="bioluminescent-bay-premium"] .stat-card,
+:root[data-theme="bioluminescent-bay-premium"] .table-wrapper {
+  position: relative;
+  background: rgba(18, 38, 65, 0.2);
+  
+  /* Двойной блюр для эффекта толстого льда */
+  backdrop-filter: blur(20px) saturate(2);
+  -webkit-backdrop-filter: blur(20px) saturate(2);
+  
+  /* Градиентная граница через background-origin */
+  border: 1px solid transparent;
+  background-image: 
+    linear-gradient(rgba(18, 38, 65, 0.3), rgba(12, 28, 50, 0.4)),
+    linear-gradient(135deg, 
+      rgba(255, 255, 255, 0.2) 0%, 
+      rgba(120, 200, 240, 0.08) 50%, 
+      rgba(255, 255, 255, 0.05) 100%);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  
+  /* Сложная тень для глубины */
+  box-shadow: 
+    0 15px 35px -10px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset,
+    0 4px 12px rgba(0, 0, 0, 0.2) inset,
+    0 -2px 8px rgba(120, 200, 240, 0.05) inset;
+  
+  border-radius: 18px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Ховер эффект — карточка слегка приподнимается */
+:root[data-theme="bioluminescent-bay-premium"] .card:hover,
+:root[data-theme="bioluminescent-bay-premium"] .stat-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 
+    0 20px 40px -12px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+    0 6px 16px rgba(0, 0, 0, 0.25) inset,
+    0 -2px 8px rgba(120, 200, 240, 0.08) inset;
+}
+
+/* Акцентные линии для stat-карточек — премиум версия */
+:root[data-theme="bioluminescent-bay-premium"] .stat-card {
+  overflow: hidden;
+}
+
+:root[data-theme="bioluminescent-bay-premium"] .stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    currentColor 20%, 
+    currentColor 80%, 
+    transparent 100%);
+  opacity: 0.8;
+}
+
+:root[data-theme="bioluminescent-bay-premium"] .stat-card::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: radial-gradient(circle at 30% 20%, 
+    rgba(255, 255, 255, 0.08) 0%, 
+    transparent 60%);
+  pointer-events: none;
+}
+
+:root[data-theme="bioluminescent-bay-premium"] .stat-card.green::before  { color: var(--accent-green); }
+:root[data-theme="bioluminescent-bay-premium"] .stat-card.yellow::before { color: var(--accent-yellow); }
+:root[data-theme="bioluminescent-bay-premium"] .stat-card.blue::before   { color: var(--accent-blue); }
+:root[data-theme="bioluminescent-bay-premium"] .stat-card.red::before    { color: var(--accent-red); }
+
+/* Header — премиальное матовое стекло с отражением */
+:root[data-theme="bioluminescent-bay-premium"] #header {
+  background: rgba(5, 15, 30, 0.55);
+  backdrop-filter: blur(25px) saturate(2.5);
+  -webkit-backdrop-filter: blur(25px) saturate(2.5);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 
+    0 4px 20px rgba(0, 0, 0, 0.4),
+    0 1px 2px rgba(255, 255, 255, 0.04) inset;
+  position: relative;
+}
+
+/* Блик на хедере */
+:root[data-theme="bioluminescent-bay-premium"] #header::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(120, 200, 240, 0.3) 20%, 
+    rgba(120, 200, 240, 0.5) 50%,
+    rgba(120, 200, 240, 0.3) 80%,
+    transparent 100%);
+}
+
+/* Sidebar — глубокое стекло */
+:root[data-theme="bioluminescent-bay-premium"] #sidebar {
+  background: rgba(8, 22, 42, 0.4);
+  backdrop-filter: blur(22px) saturate(2);
+  -webkit-backdrop-filter: blur(22px) saturate(2);
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  position: relative;
+}
+
+:root[data-theme="bioluminescent-bay-premium"] #sidebar::before {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0; width: 1px;
+  background: linear-gradient(180deg, 
+    rgba(120, 200, 240, 0.2) 0%, 
+    transparent 50%,
+    rgba(120, 200, 240, 0.1) 100%);
+}
+
+/* Навигация — плавные переходы */
+:root[data-theme="bioluminescent-bay-premium"] .nav-item {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  margin: 2px 8px;
+  border-radius: 8px;
+}
+
+:root[data-theme="bioluminescent-bay-premium"] .nav-item:hover {
+  background: linear-gradient(90deg, 
+    rgba(120, 200, 240, 0.12) 0%, 
+    rgba(120, 200, 240, 0.05) 100%);
+  border-left-color: transparent;
+}
+
+:root[data-theme="bioluminescent-bay-premium"] .nav-item.active {
+  background: linear-gradient(90deg, 
+    rgba(120, 200, 240, 0.18) 0%, 
+    rgba(120, 200, 240, 0.04) 100%);
+  border-left: 3px solid var(--accent-blue);
+  color: #e0f4ff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Inputs — стеклянные поля ввода */
+:root[data-theme="bioluminescent-bay-premium"] .input {
+  background: rgba(10, 25, 45, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 8px;
+  transition: all 0.25s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15) inset;
+}
+
+:root[data-theme="bioluminescent-bay-premium"] .input:focus {
+  border-color: rgba(120, 200, 240, 0.5);
+  background: rgba(15, 35, 60, 0.6);
+  box-shadow: 
+    0 0 0 3px rgba(120, 200, 240, 0.1),
+    0 2px 8px rgba(0, 0, 0, 0.2) inset;
+  outline: none;
+}
+
+:root[data-theme="bioluminescent-bay-premium"] .input::placeholder {
+  color: rgba(140, 195, 235, 0.35);
+}
+
+/* Кнопки — премиум стекло */
+:root[data-theme="bioluminescent-bay-premium"] .btn {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  font-weight: 500;
+  letter-spacing: 0.3px;
+}
+
+:root[data-theme="bioluminescent-bay-premium"] .btn::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%; width: 100%; height: 100%;
+  background: linear-gradient(90deg, 
+    transparent, 
+    rgba(255, 255, 255, 0.1), 
+    transparent);
+  transition: left 0.5s ease;
+}
+
+:root[data-theme="bioluminescent-bay-premium"] .btn:hover::before {
+  left: 100%;
+}
+
+:root[data-theme="bioluminescent-bay-premium"] .btn-primary {
+  background: linear-gradient(135deg, 
+    rgba(120, 200, 240, 0.95) 0%, 
+    rgba(90, 170, 220, 0.95) 100%);
+  color: #051218;
+  border: none;
+  box-shadow: 
+    0 4px 12px rgba(0, 0, 0, 0.2),
+    0 1px 2px rgba(255, 255, 255, 0.2) inset;
+}
+
+:root[data-theme="bioluminescent-bay-premium"] .btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, 
+    rgba(140, 220, 255, 0.95) 0%, 
+    rgba(110, 190, 240, 0.95) 100%);
+  box-shadow: 
+    0 6px 16px rgba(0, 0, 0, 0.3),
+    0 1px 3px rgba(255, 255, 255, 0.3) inset;
+  transform: translateY(-1px);
+}
+
+:root[data-theme="bioluminescent-bay-premium"] .btn-ghost {
+  background: rgba(20, 40, 65, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text-secondary);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+:root[data-theme="bioluminescent-bay-premium"] .btn-ghost:hover:not(:disabled) {
+  background: rgba(40, 65, 95, 0.5);
+  border-color: rgba(120, 200, 240, 0.3);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Таблицы — воздушное стекло */
+:root[data-theme="bioluminescent-bay-premium"] thead th {
+  background: rgba(12, 28, 50, 0.4);
+  color: rgba(180, 225, 255, 0.7);
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid rgba(120, 200, 240, 0.15);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+:root[data-theme="bioluminescent-bay-premium"] tbody tr {
+  transition: all 0.2s ease;
+}
+
+:root[data-theme="bioluminescent-bay-premium"] tbody tr:hover {
+  background: rgba(120, 200, 240, 0.06);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Бейджи — минималистичное стекло */
+:root[data-theme="bioluminescent-bay-premium"] .badge {
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+:root[data-theme="bioluminescent-bay-premium"] .badge-closed {
+  background: rgba(127, 223, 197, 0.15);
+  color: #a0f0dc;
+  border: 1px solid rgba(127, 223, 197, 0.3);
+}
+
+:root[data-theme="bioluminescent-bay-premium"] .badge-partial {
+  background: rgba(179, 229, 217, 0.15);
+  color: #c5f0e5;
+  border: 1px solid rgba(179, 229, 217, 0.3);
+}
+
+:root[data-theme="bioluminescent-bay-premium"] .badge-open {
+  background: rgba(255, 165, 153, 0.15);
+  color: #ffbdb3;
+  border: 1px solid rgba(255, 165, 153, 0.3);
+}
+
+/* Статус пиллы — с отражением */
+:root[data-theme="bioluminescent-bay-premium"] .status-pill {
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border-radius: 6px;
+  transition: all 0.25s ease;
+}
+
+:root[data-theme="bioluminescent-bay-premium"] .pill-done-on {
+  background: rgba(127, 223, 197, 0.15);
+  border: 1px solid rgba(127, 223, 197, 0.5);
+  color: #a0f0dc;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+:root[data-theme="bioluminescent-bay-premium"] .pill-paid-on {
+  background: rgba(124, 200, 244, 0.15);
+  border: 1px solid rgba(124, 200, 244, 0.5);
+  color: #a8dcff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+:root[data-theme="bioluminescent-bay-premium"] .pill-done-off,
+:root[data-theme="bioluminescent-bay-premium"] .pill-paid-off {
+  background: rgba(30, 45, 65, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+}
+
+:root[data-theme="bioluminescent-bay-premium"] .status-pill:hover {
+  transform: scale(1.02);
+}
+
+/* Логотип — акцент */
+:root[data-theme="bioluminescent-bay-premium"] .logo span {
+  color: #a0f0dc;
+  font-weight: 600;
+  text-shadow: 0 2px 10px rgba(127, 223, 197, 0.3);
+}
+
+/* Скроллбар — тонкое стекло */
+:root[data-theme="bioluminescent-bay-premium"] ::-webkit-scrollbar-track {
+  background: rgba(20, 35, 55, 0.3);
+}
+
+:root[data-theme="bioluminescent-bay-premium"] ::-webkit-scrollbar-thumb {
+  background: rgba(120, 200, 240, 0.25);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+:root[data-theme="bioluminescent-bay-premium"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(120, 200, 240, 0.4);
+}
+
+/* Модалки — премиум слой */
+:root[data-theme="bioluminescent-bay-premium"] .modal {
+  background: rgba(12, 28, 50, 0.75);
+  backdrop-filter: blur(30px) saturate(2.5);
+  -webkit-backdrop-filter: blur(30px) saturate(2.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 
+    0 25px 50px -12px rgba(0, 0, 0, 0.8),
+    0 0 0 1px rgba(120, 200, 240, 0.1) inset,
+    0 8px 20px rgba(0, 0, 0, 0.4) inset;
+}
+
+:root[data-theme="bioluminescent-bay-premium"] .modal-header {
+  background: transparent;
+  border-bottom: 1px solid rgba(120, 200, 240, 0.12);
+  position: relative;
+}
+
+:root[data-theme="bioluminescent-bay-premium"] .modal-header::after {
+  content: '';
+  position: absolute;
+  bottom: -1px; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(120, 200, 240, 0.3) 50%, 
+    transparent 100%);
+}
+
+/* Tooltip — элегантное стекло */
+:root[data-theme="bioluminescent-bay-premium"] [data-tooltip]::after {
+  background: rgba(8, 22, 42, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(120, 200, 240, 0.2);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+  border-radius: 8px;
+  padding: 0.4rem 0.8rem;
+}
+
+/* Toast — плавающее стекло */
+:root[data-theme="bioluminescent-bay-premium"] .toast {
+  background: rgba(12, 28, 50, 0.9);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 
+    0 10px 25px -5px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(120, 200, 240, 0.1) inset;
+  border-radius: 12px;
+}
+
+:root[data-theme="bioluminescent-bay-premium"] .toast.error {
+  border-left: 3px solid var(--accent-red);
+}
+
+:root[data-theme="bioluminescent-bay-premium"] .toast.warn {
+  border-left: 3px solid var(--accent-yellow);
+}
+
+/* Divider — градиентная линия */
+:root[data-theme="bioluminescent-bay-premium"] .divider {
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(120, 200, 240, 0.15) 20%, 
+    rgba(120, 200, 240, 0.3) 50%,
+    rgba(120, 200, 240, 0.15) 80%,
+    transparent 100%);
+  height: 1px;
+}
+
+/* Chart bars — с эффектом стекла */
+:root[data-theme="bioluminescent-bay-premium"] .bar-chart-inline .bar {
+  background: linear-gradient(0deg, 
+    rgba(100, 180, 240, 0.8) 0%, 
+    rgba(140, 220, 255, 0.6) 100%);
+  border-radius: 4px 4px 0 0;
+  box-shadow: 0 -2px 8px rgba(120, 200, 240, 0.2);
+  transition: all 0.3s ease;
+}
+
+:root[data-theme="bioluminescent-bay-premium"] .bar-chart-inline .bar:hover {
+  background: linear-gradient(0deg, 
+    rgba(140, 220, 255, 0.9) 0%, 
+    rgba(180, 240, 255, 0.7) 100%);
+  box-shadow: 0 -4px 12px rgba(120, 200, 240, 0.4);
+}
+
+/* Анимация появления — плавное всплытие */
+@keyframes floatIn {
+  0% { opacity: 0; transform: translateY(20px) scale(0.95); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+:root[data-theme="bioluminescent-bay-premium"] .card,
+:root[data-theme="bioluminescent-bay-premium"] .stat-card,
+:root[data-theme="bioluminescent-bay-premium"] .table-wrapper {
+  animation: floatIn 0.5s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
+}
