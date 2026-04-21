@@ -5,6 +5,10 @@
    ═══════════════════════════════════════════════════════ */
 
 :root[data-theme="cracked-salt-flats"] {
+  /* ── Theme meta ── */
+  --theme-label:  'Cracked Salt Flats';
+  --theme-swatch: 'linear-gradient(135deg, #fafaf8, #f0f0ec, #e8e8e4)';
+
   --font-display: 'Inter', sans-serif;
   --font-body:    'Inter', sans-serif;
 

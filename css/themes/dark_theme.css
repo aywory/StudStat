@@ -3,6 +3,10 @@
    ═══════════════════════════════════════════ */
 
 :root[data-theme="dark"] {
+  /* ── Theme meta (read by JS ThemeLoader) ── */
+  --theme-label:  'Тёмная';
+  --theme-swatch: '#111111';
+
   /* ── Fonts ── */
   --font-display: 'JetBrains Mono', 'Fira Code', monospace;
   --font-body:    'JetBrains Mono', 'Fira Code', monospace;

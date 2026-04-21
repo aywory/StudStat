@@ -4,8 +4,12 @@
    Uses backdrop-filter, translucent backgrounds, glow effects.
    ═══════════════════════════════════════════════════════ */
 
-/* ── Fonts ── */
 :root[data-theme="glassmorphism"] {
+  /* ── Theme meta ── */
+  --theme-label:  'Glassmorphism';
+  --theme-swatch: 'linear-gradient(135deg,#6ec6ff,#b388ff)';
+
+  /* ── Fonts ── */
   --font-display: 'JetBrains Mono', monospace;
   --font-body:    'JetBrains Mono', monospace;
 

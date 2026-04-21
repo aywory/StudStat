@@ -5,6 +5,10 @@
    ═══════════════════════════════════════════════════════ */
 
 :root[data-theme="cave-painting"] {
+  /* ── Theme meta ── */
+  --theme-label:  'Cave Painting';
+  --theme-swatch: 'linear-gradient(145deg, #d4a030 0%, #c8a060 30%, #b88a40 70%, #a07030 100%)';
+  
   --font-display: 'IM Fell English', 'Cormorant Garamond', serif;
   --font-body:    'Inter', sans-serif;
 

@@ -5,6 +5,10 @@
    ═══════════════════════════════════════════════════════ */
 
 :root[data-theme="foggy-redwood"] {
+  /* ── Theme meta ── */
+  --theme-label:  'Foggy Redwood';
+  --theme-swatch: 'linear-gradient(180deg, #c8d8c0 0%, #2a3a28 60%, #1a2218 100%)';
+
   --font-display: 'Crimson Text', serif;
   --font-body:    'Inter', sans-serif;
 

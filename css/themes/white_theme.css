@@ -3,6 +3,10 @@
    ═══════════════════════════════════════════ */
 
 :root[data-theme="white"] {
+  /* ── Theme meta ── */
+  --theme-label:  'Светлая';
+  --theme-swatch: '#f0f0f0';
+
   /* ── Fonts ── */
   --font-display: 'DM Mono', 'Courier New', monospace;
   --font-body:    'DM Mono', 'Courier New', monospace;

@@ -5,6 +5,10 @@
    ═══════════════════════════════════════════════════════ */
 
 :root[data-theme="bioluminescent-bay"] {
+  /* ── Theme meta ── */
+  --theme-label:  'Bioluminescent Bay';
+  --theme-swatch: 'radial-gradient(circle at 30% 40%, #0a2540, #071220, #020a14)';
+
   --font-display: 'Quicksand', sans-serif;
   --font-body:    'Inter', sans-serif;
 

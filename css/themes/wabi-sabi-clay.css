@@ -5,6 +5,10 @@
    ═══════════════════════════════════════════════════════ */
 
 :root[data-theme="wabi-sabi-clay"] {
+  /* ── Theme meta ── */
+  --theme-label:  'Wabi Sabi Clay';
+  --theme-swatch: 'linear-gradient(135deg, #d4a373, #bc8f6c, #e8d5c4)';
+
   --font-display: 'Cormorant Garamond', serif;
   --font-body:    'Inter', sans-serif;
 

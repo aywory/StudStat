@@ -5,6 +5,10 @@
    ═══════════════════════════════════════════════════════ */
 
 :root[data-theme="agate-slice"] {
+  /* ── Theme meta ── */
+  --theme-label:  'Agate Slice';
+  --theme-swatch: 'linear-gradient(145deg, #e8d5f0, #d4c0e0, #f0e0f0, #c8b0d0)';
+
   --font-display: 'Lora', serif;
   --font-body:    'Inter', sans-serif;
 
