@@ -1,0 +1,204 @@
+/* ═══════════════════════════════════════════════════════
+   themes/bioluminescent-bay-minimal.css
+   Minimal Glassmorphism — Холодное стекло, точный свет.
+   ═══════════════════════════════════════════════════════ */
+
+:root[data-theme="bioluminescent-bay-minimal"] {
+  /* ── Theme Meta ── */
+  --theme-label:  'Bio Bay (Minimal)';
+  --theme-swatch: 'linear-gradient(145deg, #0a1a2b, #04111f)';
+
+  --font-display: 'Inter', sans-serif;
+  --font-body:    'Inter', sans-serif;
+
+  /* Точные, приглушенные акценты глубоководного свечения */
+  --accent-yellow: #a3d0c0; /* Холодный бирюзовый вместо желтого */
+  --accent-green:  #7fd1b9;
+  --accent-red:    #ff9a8b;  /* Коралловый, не кислотный */
+  --accent-blue:   #6bb8e8;
+
+  /* Типографика: чистый холодный контраст */
+  --text-primary:   rgba(230, 245, 255, 0.95);
+  --text-secondary: rgba(180, 215, 240, 0.70);
+  --text-muted:     rgba(130, 180, 215, 0.45);
+
+  /* Тонкие границы для эффекта матового стекла */
+  --border:        rgba(255, 255, 255, 0.08);
+  --border-subtle: rgba(255, 255, 255, 0.04);
+
+  /* Основа: Глубокий холодный фон */
+  --bg-primary:   #0a1525;
+  --bg-secondary: rgba(20, 35, 55, 0.40);
+  --bg-card:      rgba(25, 45, 70, 0.30);
+  --bg-sidebar:   rgba(10, 20, 35, 0.50);
+  --bg-header:    rgba(8, 18, 30, 0.70);
+  --bg-thead:     rgba(20, 40, 60, 0.40);
+  --bg-input:     rgba(15, 30, 45, 0.50);
+  --bg-hover:     rgba(100, 180, 230, 0.08);
+  --bg-row-hover: rgba(100, 180, 230, 0.05);
+  --bg-tooltip:   rgba(15, 28, 45, 0.98);
+}
+
+:root[data-theme="bioluminescent-bay-minimal"] body {
+  background: #0a1525;
+  background-image: 
+    radial-gradient(circle at 20% 30%, rgba(80, 180, 220, 0.08) 0%, transparent 35%),
+    radial-gradient(circle at 80% 70%, rgba(100, 200, 200, 0.05) 0%, transparent 40%);
+  background-attachment: fixed;
+}
+
+/* Убираем "дебильные" свечения, оставляем только аккуратные границы */
+:root[data-theme="bioluminescent-bay-minimal"] body::before {
+  display: none; /* Убираем псевдопланктон, мешающий читаемости */
+}
+
+/* ═══ ЧИСТЫЙ GLASSMORPHISM ════════════════════════════ */
+:root[data-theme="bioluminescent-bay-minimal"] .card,
+:root[data-theme="bioluminescent-bay-minimal"] .modal,
+:root[data-theme="bioluminescent-bay-minimal"] .stat-card,
+:root[data-theme="bioluminescent-bay-minimal"] .table-wrapper {
+  background: rgba(20, 40, 65, 0.30);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2), inset 0 1px 1px rgba(255, 255, 255, 0.04);
+  border-radius: 12px; /* Немного уменьшим радиус для строгости */
+}
+
+/* Акцентные линии сверху карточек — только цвет, без свечения */
+:root[data-theme="bioluminescent-bay-minimal"] .stat-card.green::before  { background: var(--accent-green); }
+:root[data-theme="bioluminescent-bay-minimal"] .stat-card.yellow::before { background: var(--accent-yellow); }
+:root[data-theme="bioluminescent-bay-minimal"] .stat-card.blue::before   { background: var(--accent-blue); }
+:root[data-theme="bioluminescent-bay-minimal"] .stat-card.red::before    { background: var(--accent-red); }
+
+/* Header — строгое стекло */
+:root[data-theme="bioluminescent-bay-minimal"] #header {
+  background: rgba(8, 18, 30, 0.70);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Sidebar — матовое стекло */
+:root[data-theme="bioluminescent-bay-minimal"] #sidebar {
+  background: rgba(10, 20, 35, 0.50);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-right: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+/* Навигация: точное выделение вместо свечения */
+:root[data-theme="bioluminescent-bay-minimal"] .nav-item:hover {
+  background: rgba(100, 180, 230, 0.08);
+}
+:root[data-theme="bioluminescent-bay-minimal"] .nav-item.active {
+  background: rgba(100, 180, 230, 0.12);
+  border-left: 2px solid var(--accent-blue);
+  color: var(--accent-blue);
+  /* Убираем text-shadow */
+}
+
+/* Inputs — холодное стекло */
+:root[data-theme="bioluminescent-bay-minimal"] .input {
+  background: rgba(15, 30, 45, 0.50);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+  backdrop-filter: blur(4px);
+  transition: border-color 0.2s, background 0.2s;
+}
+:root[data-theme="bioluminescent-bay-minimal"] .input:focus {
+  border-color: var(--accent-blue);
+  background: rgba(20, 40, 60, 0.70);
+  box-shadow: none; /* Убираем свечение вокруг инпута */
+}
+
+/* Кнопки: чистый цвет, минимум теней */
+:root[data-theme="bioluminescent-bay-minimal"] .btn-primary {
+  background: rgba(107, 184, 232, 0.90);
+  color: #0a1525;
+  font-weight: 500;
+  border: none;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+:root[data-theme="bioluminescent-bay-minimal"] .btn-primary:hover:not(:disabled) {
+  background: var(--accent-blue);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+:root[data-theme="bioluminescent-bay-minimal"] .btn-ghost {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  backdrop-filter: blur(4px);
+}
+:root[data-theme="bioluminescent-bay-minimal"] .btn-ghost:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: var(--text-primary);
+}
+
+/* Таблицы: минималистичный hover */
+:root[data-theme="bioluminescent-bay-minimal"] thead th {
+  background: rgba(20, 40, 60, 0.40);
+  color: rgba(180, 215, 240, 0.65);
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
+:root[data-theme="bioluminescent-bay-minimal"] tbody tr:hover {
+  background: rgba(100, 180, 230, 0.05);
+}
+
+/* Бейджи: чистый фон без градиентов */
+:root[data-theme="bioluminescent-bay-minimal"] .badge-closed  { background: rgba(127, 209, 185, 0.12); color: var(--accent-green); }
+:root[data-theme="bioluminescent-bay-minimal"] .badge-partial { background: rgba(163, 208, 192, 0.12); color: var(--accent-yellow); }
+:root[data-theme="bioluminescent-bay-minimal"] .badge-open    { background: rgba(255, 154, 139, 0.12); color: var(--accent-red); }
+
+/* Статус-пиллы: строгость */
+:root[data-theme="bioluminescent-bay-minimal"] .pill-done-on {
+  background: rgba(127, 209, 185, 0.12);
+  border: 1px solid rgba(127, 209, 185, 0.4);
+  color: var(--accent-green);
+}
+:root[data-theme="bioluminescent-bay-minimal"] .pill-paid-on {
+  background: rgba(107, 184, 232, 0.12);
+  border: 1px solid rgba(107, 184, 232, 0.4);
+  color: var(--accent-blue);
+}
+:root[data-theme="bioluminescent-bay-minimal"] .pill-done-off,
+:root[data-theme="bioluminescent-bay-minimal"] .pill-paid-off {
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+/* Логотип: точечный акцент */
+:root[data-theme="bioluminescent-bay-minimal"] .logo span {
+  color: var(--accent-green);
+  font-weight: 600;
+}
+
+/* Скроллбар: холодный и тонкий */
+:root[data-theme="bioluminescent-bay-minimal"] ::-webkit-scrollbar-thumb {
+  background: rgba(180, 215, 240, 0.15);
+  border-radius: 10px;
+}
+:root[data-theme="bioluminescent-bay-minimal"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(180, 215, 240, 0.25);
+}
+
+/* Модалки: идеальное матовое стекло */
+:root[data-theme="bioluminescent-bay-minimal"] .modal {
+  background: rgba(15, 30, 50, 0.80);
+  backdrop-filter: blur(20px) saturate(1.8);
+  -webkit-backdrop-filter: blur(20px) saturate(1.8);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+:root[data-theme="bioluminescent-bay-minimal"] .modal-header {
+  background: transparent;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Divider — точная линия */
+:root[data-theme="bioluminescent-bay-minimal"] .divider {
+  background: var(--border);
+}
