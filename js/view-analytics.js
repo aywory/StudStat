@@ -61,24 +61,29 @@ const AnalyticsView = (() => {
 
     /* Chart 1: Revenue by client */
     const byClientCard = _makeCard('Доход по заказчикам');
-    const bc1 = document.createElement('canvas'); bc1.id = 'chart-by-client'; bc1.height = 220;
-    byClientCard.querySelector('.card').appendChild(bc1);
+    const wrap1 = document.createElement('div'); wrap1.style.cssText='position:relative;height:220px';
+    const bc1 = document.createElement('canvas'); bc1.id = 'chart-by-client';
+    wrap1.appendChild(bc1);
+    byClientCard.querySelector('.card').appendChild(wrap1);
     chartsRow.appendChild(byClientCard);
 
     /* Chart 2: Revenue by subject */
     const bySubCard = _makeCard('Доход по предметам');
-    const bc2 = document.createElement('canvas'); bc2.id = 'chart-by-subject'; bc2.height = 220;
-    bySubCard.querySelector('.card').appendChild(bc2);
+    const wrap2 = document.createElement('div'); wrap2.style.cssText='position:relative;height:220px';
+    const bc2 = document.createElement('canvas'); bc2.id = 'chart-by-subject';
+    wrap2.appendChild(bc2);
+    bySubCard.querySelector('.card').appendChild(wrap2);
     chartsRow.appendChild(bySubCard);
 
     wrap.appendChild(chartsRow);
 
     /* ── Timeline chart ── */
     const timeCard = _makeCard('Доходы по времени (по дате оплаты)');
-    const bc3 = document.createElement('canvas'); bc3.id = 'chart-timeline'; bc3.height = 160;
-    timeCard.querySelector('.card').appendChild(bc3);
+    const wrap3 = document.createElement('div'); wrap3.style.cssText='position:relative;height:180px';
+    const bc3 = document.createElement('canvas'); bc3.id = 'chart-timeline';
+    wrap3.appendChild(bc3);
+    timeCard.querySelector('.card').appendChild(wrap3);
     wrap.appendChild(timeCard);
-    wrap.querySelector('#chart-timeline')?.parentElement?.parentElement?.classList?.add('mt-lg');
 
     /* ── Summary table ── */
     const tableCard = document.createElement('div');
@@ -146,6 +151,7 @@ const AnalyticsView = (() => {
     const dark = document.documentElement.getAttribute('data-theme') !== 'white';
     return {
       responsive: true,
+      maintainAspectRatio: false,
       plugins: {
         legend: { labels: { color: dark ? '#999' : '#555', font: { size: 11 } } },
         tooltip: { titleFont: { size: 12 }, bodyFont: { size: 11 } }
@@ -180,7 +186,7 @@ const AnalyticsView = (() => {
     const labels = sorted.map(([k]) => k);
     const data   = sorted.map(([,v]) => v.sum);
     const colors = _chartColors(labels.length);
-    const opts = { responsive: true, plugins: { legend: { position: 'right', labels: { color: document.documentElement.getAttribute('data-theme') !== 'white' ? '#999' : '#555', font: { size: 11 }, boxWidth: 12 } } } };
+    const opts = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: document.documentElement.getAttribute('data-theme') !== 'white' ? '#999' : '#555', font: { size: 11 }, boxWidth: 12 } } } };
     const ch = new Chart(canvas, {
       type: 'doughnut',
       data: { labels, datasets: [{ data, backgroundColor: colors, hoverOffset: 6 }] },

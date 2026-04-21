@@ -92,15 +92,24 @@ thead th {
   color: var(--text-muted);
   font-size: 0.7rem; font-weight: 700;
   letter-spacing: 0.07em; text-transform: uppercase;
-  padding: 0.6rem 0.85rem;
+  padding: 0.6rem 1.6rem 0.6rem 0.85rem; /* right padding reserves arrow space */
   text-align: left; white-space: nowrap;
   border-bottom: 1px solid var(--border);
   user-select: none; cursor: pointer; position: relative;
 }
 thead th:hover { color: var(--text-primary); }
-thead th.sorted-asc::after  { content: ' ↑'; color: var(--accent-yellow); }
-thead th.sorted-desc::after { content: ' ↓'; color: var(--accent-yellow); }
-thead th.no-sort { cursor: default; }
+/* Arrow sits in reserved space — never shifts layout */
+thead th::after {
+  content: '';
+  position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%);
+  font-size: 0.7rem; line-height: 1;
+  color: var(--accent-yellow);
+  width: 0.7rem; text-align: center;
+}
+thead th.sorted-asc::after  { content: '↑'; }
+thead th.sorted-desc::after { content: '↓'; }
+thead th.no-sort { cursor: default; padding-right: 0.85rem; }
+thead th.no-sort::after { display: none; }
 
 tbody tr {
   border-bottom: 1px solid var(--border-subtle);
@@ -213,5 +222,102 @@ tbody tr:hover .row-actions { opacity: 1; }
 .bar-chart-inline .bar {
   flex: 1; background: var(--accent-blue); border-radius: 2px 2px 0 0;
   min-width: 6px; transition: background 0.15s;
+}
+
+/* ═══ INLINE EDITABLE CELLS ════════════════════ */
+td.editable {
+  position: relative; cursor: text;
+}
+td.editable:hover { background: var(--bg-hover); }
+
+/* inline input that appears inside a cell */
+.cell-input {
+  background: var(--bg-input);
+  border: 1px solid var(--accent-yellow);
+  border-radius: 3px;
+  padding: 0.15rem 0.4rem;
+  font-family: var(--font-body); font-size: 0.82rem;
+  color: var(--text-primary);
+  width: 100%; min-width: 60px;
+  outline: none;
+}
+.cell-input:focus { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-yellow) 25%, transparent); }
+
+/* datalist suggestions anchored to cell */
+.cell-datalist-wrap { position: relative; width: 100%; }
+
+/* ═══ STATUS TOGGLE PAIR ════════════════════════ */
+.status-pair {
+  display: inline-flex; gap: 4px; align-items: center;
+}
+.status-pill {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 0.18rem 0.55rem;
+  border-radius: 3px; font-size: 0.7rem; font-weight: 700;
+  letter-spacing: 0.04em; cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.15s; user-select: none;
+}
+/* off state */
+.status-pill.pill-done-off {
+  border-color: var(--border); color: var(--text-muted);
+  background: transparent;
+}
+.status-pill.pill-paid-off {
+  border-color: var(--border); color: var(--text-muted);
+  background: transparent;
+}
+/* on state */
+.status-pill.pill-done-on {
+  background: color-mix(in srgb, var(--accent-blue) 18%, transparent);
+  border-color: var(--accent-blue); color: var(--accent-blue);
+}
+.status-pill.pill-paid-on {
+  background: color-mix(in srgb, var(--accent-green) 18%, transparent);
+  border-color: var(--accent-green); color: var(--accent-green);
+}
+.status-pill:hover { filter: brightness(1.2); }
+
+/* ═══ CHARTS — RESPONSIVE FIX ══════════════════ */
+.chart-container canvas {
+  max-width: 100% !important;
+}
+/* override Chart.js inline styles that cause fixed sizing */
+canvas { max-width: 100% !important; height: auto !important; }
+
+/* ═══ THEME DROPDOWN ════════════════════════════ */
+.theme-more-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 18px; padding: 0 6px;
+  border-radius: 9px;        /* pill shape: 2× wide */
+  border: 2px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-muted); font-size: 0.7rem;
+  cursor: pointer; transition: all 0.15s;
+  letter-spacing: 0.05em;
+}
+.theme-more-btn:hover { border-color: var(--text-muted); color: var(--text-primary); }
+.theme-more-btn.active { border-color: var(--text-primary); }
+
+.theme-dropdown {
+  position: absolute; top: calc(100% + 8px); right: 0;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 6px; min-width: 160px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+  z-index: 9000; overflow: hidden;
+  animation: fadeIn 0.15s ease;
+  max-height: 260px; overflow-y: auto;
+}
+.theme-dropdown-item {
+  display: flex; align-items: center; gap: 0.6rem;
+  padding: 0.55rem 0.85rem; font-size: 0.82rem;
+  cursor: pointer; color: var(--text-secondary);
+  transition: background 0.1s;
+}
+.theme-dropdown-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+.theme-dropdown-item.active { color: var(--accent-yellow); font-weight: 600; }
+.theme-dropdown-swatch {
+  width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0;
+  border: 1px solid var(--border);
 }
 .bar-chart-inline .bar:hover { background: var(--accent-yellow); }

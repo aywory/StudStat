@@ -53,7 +53,7 @@ uchet/
   "semesterId": "ссылка на семестр",
   "subject": "ап",
   "taskNum": "1",
-  "client": "Фамилия",
+  "client": "Витренко",
   "price": 300,
   "doneDate": "2024-03-15",
   "paidDate": "2024-03-16",

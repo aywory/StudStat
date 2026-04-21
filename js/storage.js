@@ -1,45 +1,128 @@
 /**
  * storage.js
- * Handles all persistence via File System Access API.
- * Falls back to in-memory if API not supported.
+ * Persistence via File System Access API.
+ * File handle is persisted in IndexedDB so on next visit the browser
+ * can silently reopen the file (if permission is still granted)
+ * or prompt the user with a single click.
  */
 
 const Storage = (() => {
   let _fileHandle = null;
-  let _data = null;        // live in-memory copy
-  let _dirty = false;
-  let _saveTimer = null;
+  let _data       = null;
+  let _dirty      = false;
+  let _saveTimer  = null;
+
+  const IDB_DB    = 'uchet_store';
+  const IDB_STORE = 'handles';
+  const IDB_KEY   = 'main';
+  const LS_NAME   = 'uchet_file_name';
 
   const DEFAULT_DATA = {
     version: 1,
-    semesters: [],         // { id, name, year, label }
-    records: [],           // see RECORD_SCHEMA below
-    clients: [],           // quick-access client name list (derived)
-    subjects: [],          // quick-access subject list (derived)
+    semesters: [],
+    records: [],
+    clients: [],
+    subjects: [],
     meta: { createdAt: null, updatedAt: null }
   };
 
-  /* ─── Public API ─────────────────────────── */
+  /* ─── IndexedDB helpers ─────────────────────── */
+  function _idb() {
+    return new Promise((res, rej) => {
+      const req = indexedDB.open(IDB_DB, 1);
+      req.onupgradeneeded = e => e.target.result.createObjectStore(IDB_STORE);
+      req.onsuccess = e => res(e.target.result);
+      req.onerror   = () => rej(req.error);
+    });
+  }
 
+  async function _idbSaveHandle(h) {
+    try {
+      const db = await _idb();
+      await new Promise((res, rej) => {
+        const tx  = db.transaction(IDB_STORE, 'readwrite');
+        const req = tx.objectStore(IDB_STORE).put(h, IDB_KEY);
+        req.onsuccess = res; req.onerror = () => rej(req.error);
+      });
+      localStorage.setItem(LS_NAME, h.name);
+    } catch(_) {}
+  }
+
+  async function _idbLoadHandle() {
+    try {
+      const db = await _idb();
+      return await new Promise((res, rej) => {
+        const tx  = db.transaction(IDB_STORE, 'readonly');
+        const req = tx.objectStore(IDB_STORE).get(IDB_KEY);
+        req.onsuccess = () => res(req.result || null);
+        req.onerror   = () => rej(req.error);
+      });
+    } catch(_) { return null; }
+  }
+
+  async function _idbClear() {
+    try {
+      const db = await _idb();
+      await new Promise((res, rej) => {
+        const tx  = db.transaction(IDB_STORE, 'readwrite');
+        const req = tx.objectStore(IDB_STORE).delete(IDB_KEY);
+        req.onsuccess = res; req.onerror = () => rej(req.error);
+      });
+      localStorage.removeItem(LS_NAME);
+    } catch(_) {}
+  }
+
+  /* ─── Auto-open on page load ────────────────── */
+  /**
+   * Call this before showing UI. Returns:
+   *   { ok: true }               — opened silently
+   *   { ok: false, name, handle }— needs user gesture (click) to re-verify
+   *   { ok: false }              — no stored handle
+   */
+  async function tryAutoOpen() {
+    const handle = await _idbLoadHandle();
+    if (!handle) return { ok: false };
+    const name = localStorage.getItem(LS_NAME) || handle.name;
+    try {
+      const perm = await handle.queryPermission({ mode: 'readwrite' });
+      if (perm === 'granted') {
+        const text = await (await handle.getFile()).text();
+        _fileHandle = handle;
+        _data = _migrate(JSON.parse(text));
+        return { ok: true };
+      }
+      return { ok: false, name, handle };
+    } catch(_) {
+      return { ok: false, name };
+    }
+  }
+
+  /** Call after a user gesture to re-request permission */
+  async function reVerifyHandle(handle) {
+    try {
+      if ((await handle.requestPermission({ mode: 'readwrite' })) !== 'granted') return { ok: false };
+      _fileHandle = handle;
+      _data = _migrate(JSON.parse(await (await handle.getFile()).text()));
+      return { ok: true };
+    } catch(e) { return { ok: false, error: e.message }; }
+  }
+
+  /* ─── File pickers ──────────────────────────── */
   async function openFile() {
     if (!('showOpenFilePicker' in window)) {
       _data = structuredClone(DEFAULT_DATA);
-      return { ok: true, isNew: true, fsUnavailable: true };
+      return { ok: true, fsUnavailable: true };
     }
     try {
       const [handle] = await window.showOpenFilePicker({
-        types: [{ description: 'Uchet JSON', accept: { 'application/json': ['.json'] } }],
-        multiple: false
+        types: [{ description: 'Uchet JSON', accept: { 'application/json': ['.json'] } }]
       });
       _fileHandle = handle;
-      const file = await handle.getFile();
-      const text = await file.text();
-      _data = JSON.parse(text);
-      _data = _migrate(_data);
-      return { ok: true, isNew: false };
-    } catch (e) {
-      if (e.name === 'AbortError') return { ok: false, aborted: true };
-      return { ok: false, error: e.message };
+      _data = _migrate(JSON.parse(await (await handle.getFile()).text()));
+      await _idbSaveHandle(handle);
+      return { ok: true };
+    } catch(e) {
+      return e.name === 'AbortError' ? { ok: false, aborted: true } : { ok: false, error: e.message };
     }
   }
 
@@ -58,48 +141,44 @@ const Storage = (() => {
       _data = structuredClone(DEFAULT_DATA);
       _data.meta.createdAt = new Date().toISOString();
       await _flush();
+      await _idbSaveHandle(handle);
       return { ok: true };
-    } catch (e) {
-      if (e.name === 'AbortError') return { ok: false, aborted: true };
-      return { ok: false, error: e.message };
+    } catch(e) {
+      return e.name === 'AbortError' ? { ok: false, aborted: true } : { ok: false, error: e.message };
     }
   }
 
-  /** Returns a deep-copy snapshot of current data */
-  function getData() {
-    return structuredClone(_data);
+  function getSavedFileName() { return localStorage.getItem(LS_NAME); }
+
+  async function forgetFile() {
+    _fileHandle = null; _data = null;
+    await _idbClear();
   }
 
-  /** Replace entire data object and schedule save */
-  function setData(newData) {
-    _data = structuredClone(newData);
-    _scheduleSave();
-  }
+  /* ─── Data API ──────────────────────────────── */
+  function isReady()      { return _data !== null; }
+  function getData()      { return structuredClone(_data); }
+  function setData(d)     { _data = structuredClone(d); _scheduleSave(); }
+  function getClients()   { return _data ? [..._data.clients]   : []; }
+  function getSubjects()  { return _data ? [..._data.subjects]  : []; }
+  function getSemesters() { return _data ? [..._data.semesters] : []; }
 
-  /* ─── Records CRUD ───────────────────────── */
-
-  function getRecords(semesterId) {
+  function getRecords(semId) {
     if (!_data) return [];
-    const recs = _data.records;
-    return semesterId ? recs.filter(r => r.semesterId === semesterId) : [...recs];
+    return semId ? _data.records.filter(r => r.semesterId === semId) : [..._data.records];
   }
 
   function addRecord(rec) {
-    rec = _normalizeRecord(rec);
-    rec.id = _uid();
-    rec.createdAt = new Date().toISOString();
-    _data.records.push(rec);
-    _syncDerived();
-    _scheduleSave();
+    rec = _norm(rec); rec.id = _uid(); rec.createdAt = new Date().toISOString();
+    _data.records.push(rec); _syncDerived(); _scheduleSave();
     return rec;
   }
 
   function updateRecord(id, patch) {
     const idx = _data.records.findIndex(r => r.id === id);
     if (idx === -1) return null;
-    _data.records[idx] = { ..._data.records[idx], ..._normalizeRecord(patch), updatedAt: new Date().toISOString() };
-    _syncDerived();
-    _scheduleSave();
+    _data.records[idx] = { ..._data.records[idx], ..._norm(patch), updatedAt: new Date().toISOString() };
+    _syncDerived(); _scheduleSave();
     return _data.records[idx];
   }
 
@@ -110,59 +189,42 @@ const Storage = (() => {
     return false;
   }
 
-  /* ─── Semesters ──────────────────────────── */
-
-  function getSemesters() { return _data ? [..._data.semesters] : []; }
-
   function addSemester(sem) {
-    sem.id = _uid();
-    _data.semesters.push(sem);
-    _scheduleSave();
-    return sem;
+    sem.id = _uid(); _data.semesters.push(sem); _scheduleSave(); return sem;
   }
 
   function deleteSemester(id) {
     _data.semesters = _data.semesters.filter(s => s.id !== id);
-    _data.records    = _data.records.filter(r => r.semesterId !== id);
-    _syncDerived();
-    _scheduleSave();
+    _data.records   = _data.records.filter(r => r.semesterId !== id);
+    _syncDerived(); _scheduleSave();
   }
 
-  /* ─── Derived lists ─────────────────────── */
+  async function saveNow() { clearTimeout(_saveTimer); await _flush(); }
 
-  function getClients()  { return _data ? [..._data.clients] : []; }
-  function getSubjects() { return _data ? [..._data.subjects] : []; }
-
-  function isReady() { return _data !== null; }
-
-  /* ─── Internal ───────────────────────────── */
-
-  function _normalizeRecord(r) {
+  /* ─── Internal ──────────────────────────────── */
+  function _norm(r) {
     return {
       ...r,
-      price:       Number(r.price)      || 0,
-      taskNum:     r.taskNum      ?? '',
-      doneDate:    r.doneDate     ?? '',
-      paidDate:    r.paidDate     ?? '',
-      status:      r.status       ?? 'о- в-',
-      notes:       r.notes        ?? '',
-      subject:     (r.subject     ?? '').trim().toLowerCase(),
-      client:      (r.client      ?? '').trim(),
-      semesterId:  r.semesterId   ?? '',
+      price:      Number(r.price)    || 0,
+      taskNum:    r.taskNum    ?? '',
+      doneDate:   r.doneDate   ?? '',
+      paidDate:   r.paidDate   ?? '',
+      notes:      r.notes      ?? '',
+      subject:    (r.subject   ?? '').trim().toLowerCase(),
+      client:     (r.client    ?? '').trim(),
+      semesterId: r.semesterId ?? '',
     };
   }
 
   function _syncDerived() {
-    const clients  = [...new Set(_data.records.map(r => r.client).filter(Boolean))].sort();
-    const subjects = [...new Set(_data.records.map(r => r.subject).filter(Boolean))].sort();
-    _data.clients  = clients;
-    _data.subjects = subjects;
+    _data.clients  = [...new Set(_data.records.map(r => r.client).filter(Boolean))].sort();
+    _data.subjects = [...new Set(_data.records.map(r => r.subject).filter(Boolean))].sort();
   }
 
   function _scheduleSave() {
     _dirty = true;
     clearTimeout(_saveTimer);
-    _saveTimer = setTimeout(_flush, 800);
+    _saveTimer = setTimeout(_flush, 600);   // auto-save 600ms after last change
   }
 
   async function _flush() {
@@ -170,23 +232,18 @@ const Storage = (() => {
     _data.meta.updatedAt = new Date().toISOString();
     const json = JSON.stringify(_data, null, 2);
     if (!_fileHandle) {
-      // no file handle — store in sessionStorage as fallback
       try { sessionStorage.setItem('uchet_backup', json); } catch(_) {}
-      _dirty = false;
-      return;
+      _dirty = false; return;
     }
     try {
-      const writable = await _fileHandle.createWritable();
-      await writable.write(json);
-      await writable.close();
+      const w = await _fileHandle.createWritable();
+      await w.write(json); await w.close();
       _dirty = false;
-    } catch(e) {
-      console.error('[Storage] flush failed:', e);
-    }
+    } catch(e) { console.error('[Storage] flush failed:', e); }
   }
 
   function _migrate(data) {
-    if (!data.version) data.version = 1;
+    if (!data.version)   data.version   = 1;
     if (!data.semesters) data.semesters = [];
     if (!data.records)   data.records   = [];
     if (!data.clients)   data.clients   = [];
@@ -199,19 +256,13 @@ const Storage = (() => {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   }
 
-  /* force immediate save (e.g. before unload) */
-  async function saveNow() {
-    clearTimeout(_saveTimer);
-    await _flush();
-  }
-
   return {
-    openFile, createFile,
+    tryAutoOpen, reVerifyHandle,
+    openFile, createFile, forgetFile, getSavedFileName,
     getData, setData, isReady,
     getRecords, addRecord, updateRecord, deleteRecord,
     getSemesters, addSemester, deleteSemester,
-    getClients, getSubjects,
-    saveNow
+    getClients, getSubjects, saveNow
   };
 })();
 

@@ -1,24 +1,23 @@
 /**
  * view-records.js
- * Full CRUD table for work records within a semester.
+ * Inline-editing table: click + to add a new blank row,
+ * click any cell to edit in-place, status controlled via pill toggles.
  */
 
 const RecordsView = (() => {
   let _semesterId = null;
   let _allRecords = [];
   let _filtered   = [];
-  let _sort  = { field: 'id_seq', dir: 'asc' };
+  let _sort  = { field: 'createdAt', dir: 'asc' };
   let _page  = 1;
-  const PER  = 25;
+  const PER  = 30;
 
-  const STATUSES = ['закрыто', 'о+ в-', 'о- в-', 'о- в+'];
-
-  /* ── Mount ─────────────────────────────── */
+  /* ── Mount ──────────────────────────────────── */
   function mount(semesterId, container) {
     _semesterId = semesterId;
     _page = 1;
     container.innerHTML = '';
-    container.appendChild(_buildView());
+    container.appendChild(_buildShell());
     refresh();
   }
 
@@ -27,273 +26,503 @@ const RecordsView = (() => {
     _applyFilter();
   }
 
-  /* ── Build DOM skeleton ────────────────── */
-  function _buildView() {
+  /* ── Shell (static chrome) ──────────────────── */
+  function _buildShell() {
     const wrap = document.createElement('div');
 
-    /* page header */
-    const ph = document.createElement('div');
+    /* Page header */
+    const sem = Storage.getSemesters().find(s => s.id === _semesterId);
+    const ph  = document.createElement('div');
     ph.className = 'page-header';
-    const sems = Storage.getSemesters();
-    const sem  = sems.find(s => s.id === _semesterId);
-    ph.innerHTML = `
-      <div class="page-header-left">
-        <h2>${sem ? sem.label : 'Учёт работ'}</h2>
-        <p class="mt-sm">Список всех выполненных работ</p>
-      </div>`;
-    const addBtn = UI.Button({ text: '+ Добавить', variant: 'primary', onClick: () => _openForm(null) });
+    ph.innerHTML = `<div class="page-header-left"><h2>${_esc(sem?.label ?? 'Учёт')}</h2><p class="mt-sm">Нажмите на ячейку для редактирования</p></div>`;
+    const addBtn = UI.Button({ text: '+ Добавить строку', variant: 'primary', onClick: _addBlankRow });
     ph.appendChild(addBtn);
     wrap.appendChild(ph);
 
-    /* filter bar */
+    /* Filter bar */
     const fb = document.createElement('div');
     fb.className = 'filter-bar';
-    fb.id = 'rec-filter-bar';
+    fb.id = 'rec-fb';
 
-    const searchWrap = document.createElement('div');
-    searchWrap.className = 'search-wrap';
-    searchWrap.innerHTML = '<span class="search-icon">⌕</span>';
-    const searchInp = UI.Input({ placeholder: 'Поиск по предмету, задаче, заказчику…', className: '' });
-    searchInp.id = 'rec-search';
-    searchInp.addEventListener('input', () => { _page = 1; _applyFilter(); });
-    searchWrap.appendChild(searchInp);
-    fb.appendChild(searchWrap);
+    const sw = document.createElement('div');
+    sw.className = 'search-wrap';
+    sw.innerHTML = '<span class="search-icon">⌕</span>';
+    const si = UI.Input({ placeholder: 'Поиск…' });
+    si.id = 'rec-search';
+    si.addEventListener('input', () => { _page=1; _applyFilter(); });
+    sw.appendChild(si);
+    fb.appendChild(sw);
 
-    /* subject filter */
-    const subjects = ['все', ...Storage.getSubjects()];
-    const subSel = UI.Select({ options: subjects, className: '' });
-    subSel.id = 'rec-filter-sub';
-    subSel.style.width = '130px';
-    subSel.addEventListener('change', () => { _page = 1; _applyFilter(); });
+    const subSel = UI.Select({ options: ['все предметы', ...Storage.getSubjects()] });
+    subSel.id = 'rec-fsub'; subSel.style.width='130px';
+    subSel.addEventListener('change', () => { _page=1; _applyFilter(); });
     fb.appendChild(subSel);
 
-    /* client filter */
-    const clients = ['все', ...Storage.getClients()];
-    const cliSel = UI.Select({ options: clients, className: '' });
-    cliSel.id = 'rec-filter-cli';
-    cliSel.style.width = '140px';
-    cliSel.addEventListener('change', () => { _page = 1; _applyFilter(); });
+    const cliSel = UI.Select({ options: ['все заказчики', ...Storage.getClients()] });
+    cliSel.id = 'rec-fcli'; cliSel.style.width='140px';
+    cliSel.addEventListener('change', () => { _page=1; _applyFilter(); });
     fb.appendChild(cliSel);
 
-    /* status filter */
-    const statusSel = UI.Select({ options: ['все', 'закрыто', 'о+ в-', 'о- в-'], className: '' });
-    statusSel.id = 'rec-filter-status';
-    statusSel.style.width = '120px';
-    statusSel.addEventListener('change', () => { _page = 1; _applyFilter(); });
-    fb.appendChild(statusSel);
+    const stSel = UI.Select({ options: ['все статусы','закрыто','в работе','не оплачено'] });
+    stSel.id = 'rec-fst'; stSel.style.width='130px';
+    stSel.addEventListener('change', () => { _page=1; _applyFilter(); });
+    fb.appendChild(stSel);
 
     wrap.appendChild(fb);
 
-    /* table */
-    const tableWrap = document.createElement('div');
-    tableWrap.className = 'table-wrapper';
-    tableWrap.id = 'rec-table-wrap';
-    wrap.appendChild(tableWrap);
+    /* Table wrapper */
+    const tw = document.createElement('div');
+    tw.className = 'table-wrapper'; tw.id = 'rec-table-wrap';
+    wrap.appendChild(tw);
 
-    /* pagination */
-    const pager = document.createElement('div');
-    pager.className = 'pagination';
-    pager.id = 'rec-pager';
-    wrap.appendChild(pager);
+    /* Pager */
+    const pg = document.createElement('div');
+    pg.className = 'pagination'; pg.id = 'rec-pager';
+    wrap.appendChild(pg);
 
     return wrap;
   }
 
-  /* ── Filter + render ───────────────────── */
+  /* ── Filter ─────────────────────────────────── */
   function _applyFilter() {
-    const q      = (document.getElementById('rec-search')?.value || '').toLowerCase();
-    const sub    = document.getElementById('rec-filter-sub')?.value    || 'все';
-    const cli    = document.getElementById('rec-filter-cli')?.value    || 'все';
-    const status = document.getElementById('rec-filter-status')?.value || 'все';
+    const q   = (document.getElementById('rec-search')?.value||'').toLowerCase();
+    const sub = document.getElementById('rec-fsub')?.value||'все предметы';
+    const cli = document.getElementById('rec-fcli')?.value||'все заказчики';
+    const st  = document.getElementById('rec-fst')?.value||'все статусы';
 
     _filtered = _allRecords.filter(r => {
-      if (sub    !== 'все' && r.subject !== sub)    return false;
-      if (cli    !== 'все' && r.client  !== cli)    return false;
-      if (status !== 'все' && r.status  !== status) return false;
+      if (sub !== 'все предметы'  && r.subject !== sub) return false;
+      if (cli !== 'все заказчики' && r.client  !== cli) return false;
+      if (st  !== 'все статусы') {
+        const derived = _deriveStatus(r);
+        if (st === 'закрыто'     && derived !== 'закрыто')     return false;
+        if (st === 'в работе'    && derived !== 'в работе')    return false;
+        if (st === 'не оплачено' && derived !== 'не оплачено') return false;
+      }
       if (q && !`${r.subject} ${r.taskNum} ${r.client} ${r.notes}`.toLowerCase().includes(q)) return false;
       return true;
     });
 
-    _filtered = _sortRecords(_filtered);
+    _filtered = _sortRecs(_filtered);
     _renderTable();
   }
 
-  function _sortRecords(arr) {
-    return [...arr].sort((a, b) => {
-      let va = a[_sort.field] ?? 0;
-      let vb = b[_sort.field] ?? 0;
-      if (_sort.field === 'price') { va = +va; vb = +vb; }
-      if (typeof va === 'string') va = va.toLowerCase();
-      if (typeof vb === 'string') vb = vb.toLowerCase();
-      return _sort.dir === 'asc' ? (va < vb ? -1 : va > vb ? 1 : 0) : (va > vb ? -1 : va < vb ? 1 : 0);
+  function _sortRecs(arr) {
+    return [...arr].sort((a,b) => {
+      let va = a[_sort.field]??'', vb = b[_sort.field]??'';
+      if (_sort.field==='price') { va=+va; vb=+vb; }
+      else { va=String(va).toLowerCase(); vb=String(vb).toLowerCase(); }
+      return _sort.dir==='asc' ? (va<vb?-1:va>vb?1:0) : (va>vb?-1:va<vb?1:0);
     });
   }
 
+  /* ── Table render ───────────────────────────── */
   function _renderTable() {
     const wrap = document.getElementById('rec-table-wrap');
     if (!wrap) return;
     wrap.innerHTML = '';
 
     if (!_filtered.length) {
-      wrap.innerHTML = `<div class="empty-state"><div class="empty-icon">📋</div><p>Нет записей. Добавьте работу.</p></div>`;
-      document.getElementById('rec-pager').innerHTML = '';
-      return;
+      wrap.innerHTML = `<div class="empty-state"><div class="empty-icon">📋</div><p>Нет записей.</p></div>`;
+      document.getElementById('rec-pager').innerHTML=''; return;
     }
 
     const pageData = _filtered.slice((_page-1)*PER, _page*PER);
+    const offset   = (_page-1)*PER;
 
-    const table = document.createElement('table');
-    table.innerHTML = `
-      <thead>
-        <tr>
-          <th data-field="seq" class="no-sort">#</th>
-          <th data-field="subject">Предмет</th>
-          <th data-field="taskNum">Задача</th>
-          <th data-field="client">Заказчик</th>
-          <th data-field="price" style="text-align:right">Цена</th>
-          <th data-field="doneDate">Выполнено</th>
-          <th data-field="paidDate">Оплачено</th>
-          <th data-field="status">Статус</th>
-          <th data-field="notes">Заметки</th>
-          <th class="no-sort"></th>
-        </tr>
-      </thead>`;
+    const tbl = document.createElement('table');
+    tbl.innerHTML = `
+      <thead><tr>
+        <th class="no-sort" style="width:2rem">#</th>
+        <th data-field="subject"  style="width:80px">Предмет</th>
+        <th data-field="taskNum"  style="width:70px">Задача</th>
+        <th data-field="client"   style="width:130px">Заказчик</th>
+        <th data-field="price"    style="width:90px;text-align:right">Цена</th>
+        <th data-field="doneDate" style="width:100px">Выполнено</th>
+        <th data-field="paidDate" style="width:100px">Оплачено</th>
+        <th class="no-sort"       style="width:110px">Статус</th>
+        <th data-field="notes">Заметки</th>
+        <th class="no-sort"       style="width:36px"></th>
+      </tr></thead>`;
 
-    /* sort headers */
-    table.querySelectorAll('thead th[data-field]').forEach(th => {
+    /* Sort header clicks */
+    tbl.querySelectorAll('thead th[data-field]').forEach(th => {
       UI.setSortHeader(th, th.dataset.field, _sort);
       th.addEventListener('click', () => {
-        const f = th.dataset.field;
-        if (_sort.field === f) _sort.dir = _sort.dir === 'asc' ? 'desc' : 'asc';
-        else _sort = { field: f, dir: 'asc' };
+        _sort = _sort.field===th.dataset.field
+          ? { field:_sort.field, dir:_sort.dir==='asc'?'desc':'asc' }
+          : { field:th.dataset.field, dir:'asc' };
         _applyFilter();
       });
     });
 
     const tbody = document.createElement('tbody');
-    const offset = (_page-1)*PER;
     pageData.forEach((rec, i) => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td class="accent-muted" style="font-size:0.72rem">${offset+i+1}</td>
-        <td><span style="font-weight:600;color:var(--accent-blue)">${_esc(rec.subject)}</span></td>
-        <td>${_esc(rec.taskNum)}</td>
-        <td style="font-weight:500">${_esc(rec.client)}</td>
-        <td class="td-num" style="color:var(--accent-green);font-weight:600">${rec.price ? rec.price + ' ₴' : '—'}</td>
-        <td class="accent-muted">${_fmtDate(rec.doneDate)}</td>
-        <td class="accent-muted">${_fmtDate(rec.paidDate)}</td>
-        <td></td>
-        <td style="max-width:140px" class="truncate accent-muted" title="${_esc(rec.notes)}">${_esc(rec.notes)}</td>
-        <td></td>`;
-
-      /* status badge */
-      tr.cells[7].appendChild(UI.statusBadge(rec.status));
-
-      /* actions */
-      const actions = document.createElement('div');
-      actions.className = 'row-actions';
-      actions.appendChild(UI.Button({ icon: '✎', variant: 'ghost', size: 'sm', title: 'Изменить', onClick: () => _openForm(rec) }));
-      actions.appendChild(UI.Button({ icon: '✕', variant: 'danger', size: 'sm', title: 'Удалить',  onClick: () => _deleteRec(rec.id) }));
-      tr.cells[9].appendChild(actions);
-
-      tbody.appendChild(tr);
+      tbody.appendChild(_buildRow(rec, offset+i+1));
     });
-    table.appendChild(tbody);
-    wrap.appendChild(table);
+    tbl.appendChild(tbody);
+    wrap.appendChild(tbl);
 
-    /* pager */
     UI.renderPagination(document.getElementById('rec-pager'), {
       total: _filtered.length, page: _page, perPage: PER,
-      onChange: p => { _page = p; _renderTable(); }
+      onChange: p => { _page=p; _renderTable(); }
     });
   }
 
-  /* ── Add / Edit Form ───────────────────── */
-  function _openForm(rec) {
-    const isEdit = !!rec;
-    const clients  = Storage.getClients();
-    const subjects = Storage.getSubjects();
+  /* ── Row builder ────────────────────────────── */
+  function _buildRow(rec, rowNum) {
+    const tr = document.createElement('tr');
+    tr.dataset.id = rec.id;
 
-    /* datalists */
-    const dlClients = document.createElement('datalist'); dlClients.id = 'dl-clients';
-    clients.forEach(c => { const o = document.createElement('option'); o.value = c; dlClients.appendChild(o); });
-    const dlSubjects = document.createElement('datalist'); dlSubjects.id = 'dl-subjects';
-    subjects.forEach(s => { const o = document.createElement('option'); o.value = s; dlSubjects.appendChild(o); });
+    /* # */
+    const tdNum = document.createElement('td');
+    tdNum.className = 'accent-muted'; tdNum.style.fontSize='0.72rem';
+    tdNum.textContent = rowNum;
+    tr.appendChild(tdNum);
 
-    const subjectInp = UI.Input({ value: rec?.subject || '', placeholder: 'ап, чм, дм…', list: 'dl-subjects' });
-    const taskInp    = UI.Input({ value: rec?.taskNum || '', placeholder: '1, экз, отч…' });
-    const clientInp  = UI.Input({ value: rec?.client  || '', placeholder: 'Заказчик', list: 'dl-clients' });
-    const priceInp   = UI.Input({ type: 'number', value: rec?.price || '', placeholder: '0' });
-    const doneDateInp= UI.Input({ type: 'date', value: rec?.doneDate || '' });
-    const paidDateInp= UI.Input({ type: 'date', value: rec?.paidDate || '' });
-    const statusSel  = UI.Select({ options: STATUSES, value: rec?.status || 'закрыто' });
-    const notesInp   = UI.Input({ value: rec?.notes || '', placeholder: 'Заметки (необязательно)' });
+    /* Editable text cells */
+    tr.appendChild(_inlineTextCell(rec, 'subject', { color:'var(--accent-blue)', fontWeight:'600', datalistKey:'subjects' }));
+    tr.appendChild(_inlineTextCell(rec, 'taskNum',  {}));
+    tr.appendChild(_inlineTextCell(rec, 'client',   { fontWeight:'500', datalistKey:'clients' }));
 
-    const body = document.createElement('div');
-    body.style.display = 'flex'; body.style.flexDirection = 'column'; body.style.gap = '1rem';
-    body.appendChild(dlClients); body.appendChild(dlSubjects);
+    /* Price */
+    const tdPrice = _inlineNumberCell(rec, 'price');
+    tdPrice.style.textAlign='right'; tdPrice.style.color='var(--accent-green)'; tdPrice.style.fontWeight='600';
+    tr.appendChild(tdPrice);
 
-    const row1 = document.createElement('div'); row1.className = 'form-row';
-    row1.appendChild(UI.FormGroup({ label: 'Предмет *', child: subjectInp }));
-    row1.appendChild(UI.FormGroup({ label: 'Задача *',  child: taskInp }));
-    body.appendChild(row1);
+    /* Done date */
+    tr.appendChild(_inlineDateCell(rec, 'doneDate'));
 
-    const row2 = document.createElement('div'); row2.className = 'form-row';
-    row2.appendChild(UI.FormGroup({ label: 'Заказчик *', child: clientInp }));
-    row2.appendChild(UI.FormGroup({ label: 'Цена (₴)',   child: priceInp }));
-    body.appendChild(row2);
+    /* Paid date */
+    tr.appendChild(_inlineDateCell(rec, 'paidDate'));
 
-    const row3 = document.createElement('div'); row3.className = 'form-row';
-    row3.appendChild(UI.FormGroup({ label: 'Дата выполнения', child: doneDateInp }));
-    row3.appendChild(UI.FormGroup({ label: 'Дата оплаты',     child: paidDateInp }));
-    body.appendChild(row3);
+    /* Status pills */
+    tr.appendChild(_statusCell(rec));
 
-    const row4 = document.createElement('div'); row4.className = 'form-row';
-    row4.appendChild(UI.FormGroup({ label: 'Статус', child: statusSel }));
-    row4.appendChild(UI.FormGroup({ label: 'Заметки', child: notesInp }));
-    body.appendChild(row4);
+    /* Notes */
+    tr.appendChild(_inlineTextCell(rec, 'notes', { muted:true, maxWidth:'180px' }));
 
-    const cancel = UI.Button({ text: 'Отмена',  variant: 'ghost',   onClick: () => UI.closeModal() });
-    const save   = UI.Button({ text: isEdit ? 'Сохранить' : 'Добавить', variant: 'primary', onClick: () => {
-      const sub = subjectInp.value.trim();
-      const task = taskInp.value.trim();
-      const cli  = clientInp.value.trim();
-      if (!sub || !task || !cli) { UI.toast('Заполните предмет, задачу и заказчика', 'error'); return; }
-      const data = {
-        semesterId: _semesterId,
-        subject: sub, taskNum: task, client: cli,
-        price: +priceInp.value || 0,
-        doneDate: doneDateInp.value, paidDate: paidDateInp.value,
-        status: statusSel.value, notes: notesInp.value.trim()
-      };
-      if (isEdit) { Storage.updateRecord(rec.id, data); UI.toast('Запись обновлена'); }
-      else        { Storage.addRecord(data);             UI.toast('Запись добавлена', 'success'); }
-      UI.closeModal();
-      refresh();
-      _applyFilter();
-    }});
+    /* Delete */
+    const tdDel = document.createElement('td');
+    const delBtn = UI.Button({ icon:'✕', variant:'danger', size:'sm', title:'Удалить', onClick:()=>_deleteRow(rec.id) });
+    delBtn.style.opacity='0';
+    tr.addEventListener('mouseenter', ()=>delBtn.style.opacity='1');
+    tr.addEventListener('mouseleave', ()=>delBtn.style.opacity='0');
+    tdDel.appendChild(delBtn);
+    tr.appendChild(tdDel);
 
-    UI.openModal({ title: isEdit ? 'Изменить запись' : 'Новая запись', bodyEl: body, footerActions: [cancel, save] });
+    return tr;
   }
 
-  async function _deleteRec(id) {
-    const ok = await UI.confirmDialog({ message: 'Удалить эту запись навсегда?', confirmText: 'Удалить' });
-    if (!ok) return;
-    Storage.deleteRecord(id);
-    UI.toast('Запись удалена', 'warn');
-    refresh();
+  /* ── Inline cell types ──────────────────────── */
+
+  function _inlineTextCell(rec, field, { color, fontWeight, muted, maxWidth, datalistKey } = {}) {
+    const td = document.createElement('td');
+    td.className = 'editable' + (muted?' accent-muted':'');
+    if (maxWidth) { td.style.maxWidth=maxWidth; td.style.overflow='hidden'; td.style.textOverflow='ellipsis'; td.style.whiteSpace='nowrap'; }
+    if (color)      td.style.color      = color;
+    if (fontWeight) td.style.fontWeight = fontWeight;
+
+    const span = document.createElement('span');
+    span.textContent = rec[field] || '';
+    if (rec[field] && maxWidth) td.title = rec[field];
+    td.appendChild(span);
+
+    td.addEventListener('click', () => _activateTextInput(td, span, rec, field, datalistKey));
+    return td;
+  }
+
+  function _activateTextInput(td, span, rec, field, datalistKey) {
+    if (td.querySelector('.cell-input')) return; // already editing
+    const inp = document.createElement('input');
+    inp.className = 'cell-input';
+    inp.value = rec[field] || '';
+
+    /* Datalist */
+    if (datalistKey) {
+      const dlId = 'dl-inline-' + datalistKey;
+      let dl = document.getElementById(dlId);
+      if (!dl) {
+        dl = document.createElement('datalist'); dl.id = dlId;
+        document.body.appendChild(dl);
+      }
+      dl.innerHTML = '';
+      const list = datalistKey==='subjects' ? Storage.getSubjects() : Storage.getClients();
+      list.forEach(v => { const o=document.createElement('option'); o.value=v; dl.appendChild(o); });
+      inp.setAttribute('list', dlId);
+    }
+
+    td.innerHTML = ''; td.appendChild(inp);
+    inp.focus(); inp.select();
+
+    const commit = () => {
+      const val = inp.value.trim();
+      Storage.updateRecord(rec.id, { [field]: val });
+      rec[field] = val;
+      span.textContent = val;
+      td.innerHTML = ''; td.appendChild(span);
+      if (field==='subject'||field==='client') {
+        // refresh filters without full re-render
+        _rebuildFilters();
+      }
+    };
+
+    inp.addEventListener('blur', commit);
+    inp.addEventListener('keydown', e => {
+      if (e.key==='Enter')  { inp.blur(); }
+      if (e.key==='Escape') { td.innerHTML=''; td.appendChild(span); }
+    });
+  }
+
+  function _inlineNumberCell(rec, field) {
+    const td = document.createElement('td');
+    td.className = 'editable';
+
+    const span = document.createElement('span');
+    span.textContent = rec[field] ? rec[field]+' ₴' : '—';
+    td.appendChild(span);
+
+    td.addEventListener('click', () => {
+      if (td.querySelector('.cell-input')) return;
+      const inp = document.createElement('input');
+      inp.type = 'number'; inp.min = '0';
+      inp.className = 'cell-input'; inp.style.textAlign='right'; inp.style.width='70px';
+      inp.value = rec[field] || '';
+      td.innerHTML=''; td.appendChild(inp);
+      inp.focus(); inp.select();
+
+      const commit = () => {
+        const val = +inp.value || 0;
+        Storage.updateRecord(rec.id, { [field]: val });
+        rec[field] = val;
+        span.textContent = val ? val+' ₴' : '—';
+        td.innerHTML=''; td.appendChild(span);
+      };
+      inp.addEventListener('blur', commit);
+      inp.addEventListener('keydown', e => { if(e.key==='Enter') inp.blur(); if(e.key==='Escape'){td.innerHTML='';td.appendChild(span);} });
+    });
+    return td;
+  }
+
+  function _inlineDateCell(rec, field) {
+    const td = document.createElement('td');
+    td.className = 'editable accent-muted';
+
+    const span = document.createElement('span');
+    span.textContent = _fmtDate(rec[field]);
+    td.appendChild(span);
+
+    td.addEventListener('click', () => {
+      if (td.querySelector('.cell-input')) return;
+      const inp = document.createElement('input');
+      inp.type='date'; inp.className='cell-input'; inp.style.width='130px';
+      inp.value = rec[field] || '';
+      td.innerHTML=''; td.appendChild(inp);
+      inp.focus();
+
+      const commit = () => {
+        const val = inp.value;
+        Storage.updateRecord(rec.id, { [field]: val });
+        rec[field] = val;
+        span.textContent = _fmtDate(val);
+        td.innerHTML=''; td.appendChild(span);
+        /* update status pill in same row */
+        const statusTd = td.parentElement?.querySelector('.status-pair')?.parentElement;
+        if (statusTd) _refreshStatusCell(statusTd, rec);
+      };
+      inp.addEventListener('blur', commit);
+      inp.addEventListener('change', commit);
+      inp.addEventListener('keydown', e=>{ if(e.key==='Escape'){td.innerHTML='';td.appendChild(span);} });
+    });
+    return td;
+  }
+
+  /* ── Status pills ───────────────────────────── */
+
+  function _statusCell(rec) {
+    const td = document.createElement('td');
+    td.appendChild(_buildStatusPair(rec));
+    return td;
+  }
+
+  function _buildStatusPair(rec) {
+    const pair = document.createElement('div');
+    pair.className = 'status-pair';
+
+    const donePill = document.createElement('span');
+    const paidPill = document.createElement('span');
+
+    const update = () => {
+      const done = !!rec.doneDate;
+      const paid = !!rec.paidDate;
+      donePill.className = 'status-pill ' + (done ? 'pill-done-on' : 'pill-done-off');
+      donePill.textContent = done ? '✓ выпол' : '○ выпол';
+      donePill.title = done ? 'Выполнено: '+_fmtDate(rec.doneDate) : 'Не выполнено — нажмите чтобы отметить';
+      paidPill.className = 'status-pill ' + (paid ? 'pill-paid-on' : 'pill-paid-off');
+      paidPill.textContent = paid ? '✓ оплач' : '○ оплач';
+      paidPill.title = paid ? 'Оплачено: '+_fmtDate(rec.paidDate) : 'Не оплачено — нажмите чтобы отметить';
+    };
+
+    donePill.addEventListener('click', () => {
+      if (!rec.doneDate) {
+        // set today's date
+        rec.doneDate = _today();
+        Storage.updateRecord(rec.id, { doneDate: rec.doneDate });
+        /* also update the date cell in the same row */
+        _refreshDateCell(donePill, rec, 'doneDate');
+      } else {
+        // already set — show date picker in a small popup to allow edit/clear
+        _dateEditPopup(donePill, rec, 'doneDate', update);
+        return;
+      }
+      update();
+    });
+
+    paidPill.addEventListener('click', () => {
+      if (!rec.paidDate) {
+        rec.paidDate = _today();
+        Storage.updateRecord(rec.id, { paidDate: rec.paidDate });
+        _refreshDateCell(paidPill, rec, 'paidDate');
+      } else {
+        _dateEditPopup(paidPill, rec, 'paidDate', update);
+        return;
+      }
+      update();
+    });
+
+    update();
+    pair.appendChild(donePill);
+    pair.appendChild(paidPill);
+    return pair;
+  }
+
+  function _refreshStatusCell(td, rec) {
+    td.innerHTML=''; td.appendChild(_buildStatusPair(rec));
+  }
+
+  function _refreshDateCell(pilEl, rec, field) {
+    /* Find the date td in the same row and update its text */
+    const row = pilEl.closest('tr');
+    if (!row) return;
+    const fieldIndex = field==='doneDate' ? 5 : 6;
+    const dateTd = row.cells[fieldIndex];
+    if (!dateTd) return;
+    const span = dateTd.querySelector('span');
+    if (span) span.textContent = _fmtDate(rec[field]);
+    else dateTd.textContent = _fmtDate(rec[field]);
+  }
+
+  /* Mini popup to change/clear an already-set date */
+  function _dateEditPopup(anchorEl, rec, field, onUpdate) {
+    const existing = document.getElementById('date-popup');
+    if (existing) existing.remove();
+
+    const popup = document.createElement('div');
+    popup.id = 'date-popup';
+    popup.style.cssText = `
+      position:fixed; z-index:9100;
+      background:var(--bg-card); border:1px solid var(--border);
+      border-radius:6px; padding:0.75rem; box-shadow:0 8px 24px rgba(0,0,0,0.4);
+      display:flex; flex-direction:column; gap:0.5rem; min-width:180px;`;
+
+    const label = document.createElement('div');
+    label.style.cssText = 'font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-muted)';
+    label.textContent = field==='doneDate' ? 'Дата выполнения' : 'Дата оплаты';
+    popup.appendChild(label);
+
+    const inp = document.createElement('input');
+    inp.type='date'; inp.className='cell-input'; inp.value=rec[field]||'';
+    popup.appendChild(inp);
+
+    const row = document.createElement('div');
+    row.style.cssText='display:flex;gap:0.4rem;justify-content:space-between';
+    const clearBtn = UI.Button({ text:'Очистить', variant:'danger', size:'sm', onClick:()=>{
+      rec[field]=''; Storage.updateRecord(rec.id,{[field]:''});
+      _refreshDateCell(anchorEl,rec,field); onUpdate(); popup.remove();
+    }});
+    const okBtn = UI.Button({ text:'OK', variant:'primary', size:'sm', onClick:()=>{
+      rec[field]=inp.value; Storage.updateRecord(rec.id,{[field]:inp.value});
+      _refreshDateCell(anchorEl,rec,field); onUpdate(); popup.remove();
+    }});
+    row.appendChild(clearBtn); row.appendChild(okBtn);
+    popup.appendChild(row);
+
+    /* Position near anchor */
+    document.body.appendChild(popup);
+    const rect = anchorEl.getBoundingClientRect();
+    popup.style.top  = Math.min(rect.bottom+4, window.innerHeight-180)+'px';
+    popup.style.left = Math.min(rect.left, window.innerWidth-200)+'px';
+
+    inp.focus();
+    const close = e => { if(!popup.contains(e.target)&&e.target!==anchorEl){ popup.remove(); document.removeEventListener('mousedown',close); } };
+    setTimeout(()=>document.addEventListener('mousedown',close),0);
+  }
+
+  /* ── Add blank row ──────────────────────────── */
+  function _addBlankRow() {
+    const rec = Storage.addRecord({
+      semesterId: _semesterId,
+      subject:'', taskNum:'', client:'', price:0,
+      doneDate:'', paidDate:'', notes:''
+    });
+    _allRecords = Storage.getRecords(_semesterId);
     _applyFilter();
+    /* Focus first editable cell of new row */
+    requestAnimationFrame(() => {
+      const tr = document.querySelector(`tr[data-id="${rec.id}"]`);
+      tr?.cells[1]?.click();
+      tr?.scrollIntoView({ behavior:'smooth', block:'nearest' });
+    });
+  }
+
+  /* ── Delete row ─────────────────────────────── */
+  async function _deleteRow(id) {
+    const ok = await UI.confirmDialog({ message:'Удалить эту строку навсегда?', confirmText:'Удалить' });
+    if (!ok) return;
+    Storage.deleteRecord(id); UI.toast('Удалено','warn');
+    _allRecords = Storage.getRecords(_semesterId);
+    _applyFilter();
+  }
+
+  /* ── Helpers ────────────────────────────────── */
+
+  function _deriveStatus(rec) {
+    const done = !!rec.doneDate;
+    const paid = !!rec.paidDate;
+    if (done && paid)   return 'закрыто';
+    if (paid && !done)  return 'не оплачено'; // оплачено но не выполнено — редкий кейс
+    if (done && !paid)  return 'не оплачено';
+    return 'в работе';
+  }
+
+  function _rebuildFilters() {
+    /* Rebuild subject/client dropdowns without re-rendering whole table */
+    const subSel = document.getElementById('rec-fsub');
+    const cliSel = document.getElementById('rec-fcli');
+    if (subSel) {
+      const cur = subSel.value;
+      subSel.innerHTML='';
+      ['все предметы',...Storage.getSubjects()].forEach(v=>{ const o=document.createElement('option');o.value=v;o.textContent=v;if(v===cur)o.selected=true;subSel.appendChild(o); });
+    }
+    if (cliSel) {
+      const cur = cliSel.value;
+      cliSel.innerHTML='';
+      ['все заказчики',...Storage.getClients()].forEach(v=>{ const o=document.createElement('option');o.value=v;o.textContent=v;if(v===cur)o.selected=true;cliSel.appendChild(o); });
+    }
   }
 
   function _fmtDate(d) {
     if (!d) return '—';
-    try { return new Date(d).toLocaleDateString('ru-RU', { day:'2-digit', month:'2-digit', year:'2-digit' }); }
-    catch { return d; }
+    try { return new Date(d+'T00:00:00').toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit'}); }
+    catch{ return d; }
   }
 
-  function _esc(s) {
-    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  function _today() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   }
+
+  function _esc(s) { return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
   return { mount, refresh };
 })();

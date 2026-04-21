@@ -27,13 +27,15 @@
   <div id="file-prompt">
     <div style="font-size:3rem">📒</div>
     <h1>Учёт работ</h1>
-    <p>Все данные хранятся локально в JSON-файле на вашем компьютере. Выберите существующий файл или создайте новый.</p>
+    <p>Все данные хранятся локально в JSON-файле на вашем компьютере.<br>Выберите существующий файл или создайте новый.</p>
+    <p id="fp-hint" style="display:none;font-size:0.8rem;color:var(--text-muted);margin-top:-0.5rem"></p>
     <div class="file-prompt-actions">
+      <button class="btn btn-success btn-lg" id="fp-reopen" style="display:none"></button>
       <button class="btn btn-primary btn-lg" id="fp-open">📂 Открыть файл</button>
-      <button class="btn btn-ghost btn-lg" id="fp-create">✨ Создать новый</button>
+      <button class="btn btn-ghost btn-lg"   id="fp-create">✨ Создать новый</button>
     </div>
-    <p style="margin-top:1rem;font-size:0.75rem;opacity:0.5">
-      Используется File System Access API. Данные остаются только у вас.
+    <p style="margin-top:1rem;font-size:0.72rem;opacity:0.4">
+      Используется File System Access API. Данные не покидают ваш компьютер.
     </p>
   </div>
 
