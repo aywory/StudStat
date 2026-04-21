@@ -63,6 +63,12 @@ const App = (() => {
       bg: 'linear-gradient(135deg, #001a00, #002800, #001400)',
       border: '#40ff80'
     },
+    {
+      id: 'cave-painting',
+      label: 'Cave Painting',
+      bg: 'linear-gradient(145deg, #d4a030 0%, #c8a060 30%, #b88a40 70%, #a07030 100%)',
+      border: '#b54a2a'
+    },
   ];
 
   /* ── State ──────────────────────────────────── */
