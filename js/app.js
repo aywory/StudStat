@@ -15,7 +15,7 @@
 
 const App = (() => {
 
-  let _view  = null;
+  let _view = null;
   let _semId = null;
   let _themes = [];   // [{id, label, swatch}] — populated by _discoverThemes()
 
@@ -27,8 +27,8 @@ const App = (() => {
     _buildHeader();
 
     const auto = await Storage.tryAutoOpen();
-    if (auto.ok)             { _boot(); return; }
-    if (auto.needsGesture)   { _showReVerifyPrompt(auto); return; }
+    if (auto.ok) { _boot(); return; }
+    if (auto.needsGesture) { _showReVerifyPrompt(auto); return; }
     _showFirstRunPrompt();
 
     window.addEventListener('beforeunload', () => Storage.saveNow());
@@ -58,11 +58,11 @@ const App = (() => {
       document.documentElement.setAttribute('data-theme', id);
       const style = getComputedStyle(document.documentElement);
 
-      let label  = style.getPropertyValue('--theme-label').trim().replace(/^'|'$/g, '').replace(/^"|"$/g, '');
+      let label = style.getPropertyValue('--theme-label').trim().replace(/^'|'$/g, '').replace(/^"|"$/g, '');
       let swatch = style.getPropertyValue('--theme-swatch').trim().replace(/^'|'$/g, '').replace(/^"|"$/g, '');
 
       // fallback: humanize the file name
-      if (!label)  label  = id.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+      if (!label) label = id.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
       if (!swatch) swatch = '#888';
 
       result.push({ id, label, swatch });
@@ -88,8 +88,8 @@ const App = (() => {
       </div>`;
     document.getElementById('fp-rv').addEventListener('click', async () => {
       const r = await Storage.reVerify(handle);
-      if (r.ok) { fp.style.display='none'; _boot(); }
-      else UI.toast('Нет доступа к файлу','error');
+      if (r.ok) { fp.style.display = 'none'; _boot(); }
+      else UI.toast('Нет доступа к файлу', 'error');
     });
     document.getElementById('fp-other').addEventListener('click', async () => {
       await Storage.forgetFile(); _showFirstRunPrompt();
@@ -113,13 +113,13 @@ const App = (() => {
       </p>`;
     document.getElementById('fp-open').addEventListener('click', async () => {
       const r = await Storage.openFile();
-      if (r.ok) { fp.style.display='none'; _boot(); }
-      else if (!r.aborted) UI.toast('Ошибка: '+(r.error||''),'error');
+      if (r.ok) { fp.style.display = 'none'; _boot(); }
+      else if (!r.aborted) UI.toast('Ошибка: ' + (r.error || ''), 'error');
     });
     document.getElementById('fp-create').addEventListener('click', async () => {
       const r = await Storage.createFile();
-      if (r.ok) { fp.style.display='none'; _boot(); }
-      else if (!r.aborted) UI.toast('Ошибка: '+(r.error||''),'error');
+      if (r.ok) { fp.style.display = 'none'; _boot(); }
+      else if (!r.aborted) UI.toast('Ошибка: ' + (r.error || ''), 'error');
     });
   }
 
@@ -136,11 +136,11 @@ const App = (() => {
     _buildSidebar();
     const main = document.getElementById('main');
     main.innerHTML = '';
-    switch(view) {
-      case 'dashboard':  DashboardView.mount(main);         break;
-      case 'records':    RecordsView.mount(semId, main);    break;
-      case 'analytics':  AnalyticsView.mount(semId, main);  break;
-      case 'semesters':  _mountSemesters(main);              break;
+    switch (view) {
+      case 'dashboard': DashboardView.mount(main); break;
+      case 'records': RecordsView.mount(semId, main); break;
+      case 'analytics': AnalyticsView.mount(semId, main); break;
+      case 'semesters': _mountSemesters(main); break;
     }
   }
 
@@ -158,11 +158,11 @@ const App = (() => {
     right.className = 'header-right';
     right.appendChild(_makeThemePicker());
     right.appendChild(UI.Button({
-      text:'💾', variant:'ghost', size:'sm', title:'Сохранить немедленно',
+      text: '💾', variant: 'ghost', size: 'sm', title: 'Сохранить немедленно',
       onClick: async () => { await Storage.saveNow(); UI.toast('Сохранено ✓'); }
     }));
     right.appendChild(UI.Button({
-      text:'📂', variant:'ghost', size:'sm', title:'Сменить файл данных',
+      text: '📂', variant: 'ghost', size: 'sm', title: 'Сменить файл данных',
       onClick: async () => { await Storage.forgetFile(); location.reload(); }
     }));
     h.appendChild(right);
@@ -175,7 +175,7 @@ const App = (() => {
     wrap.style.position = 'relative';
 
     /* First two themes as dots, rest in "···" dropdown */
-    const base  = _themes.slice(0, 2);
+    const base = _themes.slice(0, 2);
     const extra = _themes.slice(2);
 
     base.forEach(t => {
@@ -201,23 +201,31 @@ const App = (() => {
 
   function _applySwatchStyle(el, swatch) {
     if (!swatch) return;
+
+    // Читаем переменную --border из текущей темы
+    const borderColor = getComputedStyle(document.documentElement)
+      .getPropertyValue('--border')
+      .trim();
+
+    // Если переменная не задана — fallback
+    const border = borderColor || 'rgba(255,255,255,0.2)';
+
     if (swatch.includes('gradient') || swatch.includes('(')) {
       el.style.backgroundImage = swatch;
-      el.style.border = '2px solid rgba(255,255,255,.3)';
     } else {
       el.style.background = swatch;
-      // auto border: darken the color slightly
-      el.style.border = `2px solid ${swatch}aa`;
     }
+    // Применяем границу из темы
+    el.style.border = `2px solid ${border}`;
   }
 
   function _refreshPicker(wrap) {
-    const cur  = document.documentElement.getAttribute('data-theme');
+    const cur = document.documentElement.getAttribute('data-theme');
     const dots = [...wrap.querySelectorAll('.theme-dot')];
     const base = _themes.slice(0, 2);
     dots.forEach((d, i) => d.classList.toggle('active', base[i]?.id === cur));
     const pill = wrap.querySelector('.theme-more-btn');
-    if (pill) pill.classList.toggle('active', _themes.slice(2).some(t=>t.id===cur));
+    if (pill) pill.classList.toggle('active', _themes.slice(2).some(t => t.id === cur));
   }
 
   function _toggleDropdown(pill, wrap) {
@@ -225,7 +233,7 @@ const App = (() => {
     if (ex) { ex.remove(); return; }
 
     const cur = document.documentElement.getAttribute('data-theme');
-    const dd  = document.createElement('div');
+    const dd = document.createElement('div');
     dd.className = 'theme-dropdown';
 
     _themes.forEach(t => {
@@ -243,8 +251,8 @@ const App = (() => {
     });
 
     wrap.appendChild(dd);
-    const close = e => { if(!wrap.contains(e.target)){dd.remove();document.removeEventListener('click',close);}};
-    setTimeout(()=>document.addEventListener('click',close),0);
+    const close = e => { if (!wrap.contains(e.target)) { dd.remove(); document.removeEventListener('click', close); } };
+    setTimeout(() => document.addEventListener('click', close), 0);
   }
 
   function _applyTheme(id) {
@@ -256,49 +264,49 @@ const App = (() => {
   function _buildSidebar() {
     const sb = document.getElementById('sidebar');
     sb.innerHTML = '';
-    _navSection(sb,'Главная');
-    sb.appendChild(_navItem('🏠','Обзор',    'dashboard',null));
-    sb.appendChild(_navItem('⚙','Семестры', 'semesters',null));
+    _navSection(sb, 'Главная');
+    sb.appendChild(_navItem('🏠', 'Обзор', 'dashboard', null));
+    sb.appendChild(_navItem('⚙', 'Семестры', 'semesters', null));
     const sems = Storage.getSemesters();
     if (sems.length) {
-      _divider(sb); _navSection(sb,'Учёт');
-      sems.forEach(s=>sb.appendChild(_navItem('📋',s.label,'records',  s.id)));
-      _divider(sb); _navSection(sb,'Аналитика');
-      sems.forEach(s=>sb.appendChild(_navItem('📊',s.label,'analytics',s.id)));
+      _divider(sb); _navSection(sb, 'Учёт');
+      sems.forEach(s => sb.appendChild(_navItem('📋', s.label, 'records', s.id)));
+      _divider(sb); _navSection(sb, 'Аналитика');
+      sems.forEach(s => sb.appendChild(_navItem('📊', s.label, 'analytics', s.id)));
     }
   }
-  function _navSection(sb,t){const d=document.createElement('div');d.className='nav-section';d.textContent=t;sb.appendChild(d);}
-  function _divider(sb){const d=document.createElement('div');d.className='sidebar-divider';sb.appendChild(d);}
-  function _navItem(icon,text,view,semId){
-    const el=document.createElement('div');
-    el.className='nav-item'+(_view===view&&_semId===semId?' active':'');
-    el.innerHTML=`<span class="nav-icon">${icon}</span><span>${_esc(text)}</span>`;
-    el.addEventListener('click',()=>navigate(view,semId));
+  function _navSection(sb, t) { const d = document.createElement('div'); d.className = 'nav-section'; d.textContent = t; sb.appendChild(d); }
+  function _divider(sb) { const d = document.createElement('div'); d.className = 'sidebar-divider'; sb.appendChild(d); }
+  function _navItem(icon, text, view, semId) {
+    const el = document.createElement('div');
+    el.className = 'nav-item' + (_view === view && _semId === semId ? ' active' : '');
+    el.innerHTML = `<span class="nav-icon">${icon}</span><span>${_esc(text)}</span>`;
+    el.addEventListener('click', () => navigate(view, semId));
     return el;
   }
 
   /* ══ Semesters ═════════════════════════════════ */
   function _mountSemesters(container) {
-    const wrap=document.createElement('div');
-    const ph=document.createElement('div'); ph.className='page-header';
-    ph.innerHTML=`<div class="page-header-left"><h2>Семестры</h2><p class="mt-sm">Управление учебными периодами</p></div>`;
-    ph.appendChild(UI.Button({text:'+ Новый семестр',variant:'primary',onClick:_semForm}));
+    const wrap = document.createElement('div');
+    const ph = document.createElement('div'); ph.className = 'page-header';
+    ph.innerHTML = `<div class="page-header-left"><h2>Семестры</h2><p class="mt-sm">Управление учебными периодами</p></div>`;
+    ph.appendChild(UI.Button({ text: '+ Новый семестр', variant: 'primary', onClick: _semForm }));
     wrap.appendChild(ph);
-    const sems=Storage.getSemesters();
-    if(!sems.length){
-      wrap.insertAdjacentHTML('beforeend','<div class="empty-state"><div class="empty-icon">🗂</div><p>Нет семестров. Создайте первый.</p></div>');
+    const sems = Storage.getSemesters();
+    if (!sems.length) {
+      wrap.insertAdjacentHTML('beforeend', '<div class="empty-state"><div class="empty-icon">🗂</div><p>Нет семестров. Создайте первый.</p></div>');
     } else {
-      const grid=document.createElement('div'); grid.className='grid-3 mt-md';
-      sems.forEach(sem=>{
-        const recs=Storage.getRecords(sem.id);
-        const sum =recs.reduce((s,r)=>s+(r.price||0),0);
-        const paid=recs.filter(r=>r.doneDate&&r.paidDate).reduce((s,r)=>s+(r.price||0),0);
-        const card=document.createElement('div'); card.className='card';
-        card.innerHTML=`<div class="card-header"><h3>${_esc(sem.label)}</h3></div><p style="font-size:.8rem;margin-bottom:.75rem">${recs.length} работ · сумма ${sum} ₴ · оплачено ${paid} ₴</p>`;
-        const acts=document.createElement('div'); acts.className='flex gap-sm';
-        acts.appendChild(UI.Button({text:'Учёт',     variant:'blue',  size:'sm',onClick:()=>navigate('records',  sem.id)}));
-        acts.appendChild(UI.Button({text:'Аналитика',variant:'ghost', size:'sm',onClick:()=>navigate('analytics',sem.id)}));
-        acts.appendChild(UI.Button({text:'✕',        variant:'danger',size:'sm',onClick:()=>_delSem(sem.id)}));
+      const grid = document.createElement('div'); grid.className = 'grid-3 mt-md';
+      sems.forEach(sem => {
+        const recs = Storage.getRecords(sem.id);
+        const sum = recs.reduce((s, r) => s + (r.price || 0), 0);
+        const paid = recs.filter(r => r.doneDate && r.paidDate).reduce((s, r) => s + (r.price || 0), 0);
+        const card = document.createElement('div'); card.className = 'card';
+        card.innerHTML = `<div class="card-header"><h3>${_esc(sem.label)}</h3></div><p style="font-size:.8rem;margin-bottom:.75rem">${recs.length} работ · сумма ${sum} ₴ · оплачено ${paid} ₴</p>`;
+        const acts = document.createElement('div'); acts.className = 'flex gap-sm';
+        acts.appendChild(UI.Button({ text: 'Учёт', variant: 'blue', size: 'sm', onClick: () => navigate('records', sem.id) }));
+        acts.appendChild(UI.Button({ text: 'Аналитика', variant: 'ghost', size: 'sm', onClick: () => navigate('analytics', sem.id) }));
+        acts.appendChild(UI.Button({ text: '✕', variant: 'danger', size: 'sm', onClick: () => _delSem(sem.id) }));
         card.appendChild(acts); grid.appendChild(card);
       });
       wrap.appendChild(grid);
@@ -306,43 +314,45 @@ const App = (() => {
     container.appendChild(wrap);
   }
 
-  async function _semForm(){
-    const li=UI.Input({placeholder:'2 курс 1 семестр 2025г.'});
-    const yi=UI.Input({type:'number',value:new Date().getFullYear()});
-    const body=document.createElement('div'); body.style.cssText='display:flex;flex-direction:column;gap:1rem';
-    body.appendChild(UI.FormGroup({label:'Название *',child:li}));
-    body.appendChild(UI.FormGroup({label:'Год',child:yi}));
-    const cancel=UI.Button({text:'Отмена',variant:'ghost',onClick:()=>UI.closeModal()});
-    const ok=UI.Button({text:'Создать',variant:'primary',onClick:()=>{
-      const label=li.value.trim();
-      if(!label){UI.toast('Введите название','error');return;}
-      Storage.addSemester({label,year:+yi.value||new Date().getFullYear()});
-      UI.closeModal(); UI.toast('Семестр создан'); navigate('semesters');
-    }});
-    await UI.openModal({title:'Новый семестр',bodyEl:body,footerActions:[cancel,ok]});
+  async function _semForm() {
+    const li = UI.Input({ placeholder: '2 курс 1 семестр 2025г.' });
+    const yi = UI.Input({ type: 'number', value: new Date().getFullYear() });
+    const body = document.createElement('div'); body.style.cssText = 'display:flex;flex-direction:column;gap:1rem';
+    body.appendChild(UI.FormGroup({ label: 'Название *', child: li }));
+    body.appendChild(UI.FormGroup({ label: 'Год', child: yi }));
+    const cancel = UI.Button({ text: 'Отмена', variant: 'ghost', onClick: () => UI.closeModal() });
+    const ok = UI.Button({
+      text: 'Создать', variant: 'primary', onClick: () => {
+        const label = li.value.trim();
+        if (!label) { UI.toast('Введите название', 'error'); return; }
+        Storage.addSemester({ label, year: +yi.value || new Date().getFullYear() });
+        UI.closeModal(); UI.toast('Семестр создан'); navigate('semesters');
+      }
+    });
+    await UI.openModal({ title: 'Новый семестр', bodyEl: body, footerActions: [cancel, ok] });
   }
 
-  async function _delSem(id){
-    const sem=Storage.getSemesters().find(s=>s.id===id);
-    const recs=Storage.getRecords(id);
-    const ok=await UI.confirmDialog({message:`Удалить «${sem?.label}»? Вместе с ним ${recs.length} записей.`,confirmText:'Удалить',confirmVariant:'danger'});
-    if(!ok) return;
-    Storage.deleteSemester(id); UI.toast('Удалено','warn'); navigate('semesters');
+  async function _delSem(id) {
+    const sem = Storage.getSemesters().find(s => s.id === id);
+    const recs = Storage.getRecords(id);
+    const ok = await UI.confirmDialog({ message: `Удалить «${sem?.label}»? Вместе с ним ${recs.length} записей.`, confirmText: 'Удалить', confirmVariant: 'danger' });
+    if (!ok) return;
+    Storage.deleteSemester(id); UI.toast('Удалено', 'warn'); navigate('semesters');
   }
 
   /* ══ Modal shell ═══════════════════════════════ */
-  function _buildModalShell(){
-    if(document.getElementById('modal-backdrop')) return;
-    const bd=document.createElement('div'); bd.id='modal-backdrop';
-    bd.innerHTML=`<div class="modal"><div class="modal-header"><h3 class="modal-title"></h3><button class="btn btn-ghost btn-sm btn-icon" id="modal-close">✕</button></div><div class="modal-body"></div><div class="modal-footer"></div></div>`;
-    bd.addEventListener('click',e=>{if(e.target===bd)UI.closeModal();});
-    bd.querySelector('#modal-close').addEventListener('click',()=>UI.closeModal());
+  function _buildModalShell() {
+    if (document.getElementById('modal-backdrop')) return;
+    const bd = document.createElement('div'); bd.id = 'modal-backdrop';
+    bd.innerHTML = `<div class="modal"><div class="modal-header"><h3 class="modal-title"></h3><button class="btn btn-ghost btn-sm btn-icon" id="modal-close">✕</button></div><div class="modal-body"></div><div class="modal-footer"></div></div>`;
+    bd.addEventListener('click', e => { if (e.target === bd) UI.closeModal(); });
+    bd.querySelector('#modal-close').addEventListener('click', () => UI.closeModal());
     document.body.appendChild(bd);
   }
 
-  function _esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-  return {init,navigate};
+  function _esc(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  return { init, navigate };
 })();
 
-window.App=App;
-document.addEventListener('DOMContentLoaded',()=>App.init());
+window.App = App;
+document.addEventListener('DOMContentLoaded', () => App.init());
