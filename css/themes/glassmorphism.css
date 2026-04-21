@@ -1,0 +1,32 @@
+:root[data-theme="glass"] {
+  /* ── Fonts (оставляем моноширинные) ── */
+  --font-display: 'JetBrains Mono', 'Fira Code', monospace;
+  --font-body:    'JetBrains Mono', 'Fira Code', monospace;
+
+  /* ── Backgrounds (полупрозрачные, тёмная подложка) ── */
+  --bg-primary:   #0a0f14;                  /* глубокий фон под стеклом */
+  --bg-secondary: #10171f;
+  --bg-card:      rgba(18, 28, 38, 0.7);    /* стеклянная карточка */
+  --bg-sidebar:   rgba(10, 18, 26, 0.8);
+  --bg-header:    rgba(8, 16, 24, 0.75);
+  --bg-thead:     rgba(20, 34, 46, 0.6);
+  --bg-input:     rgba(255, 255, 255, 0.08);
+  --bg-hover:     rgba(255, 255, 255, 0.1);
+  --bg-row-hover: rgba(255, 255, 255, 0.06);
+  --bg-tooltip:   rgba(16, 26, 36, 0.95);
+
+  /* ── Borders (светлые полупрозрачные грани) ── */
+  --border:        rgba(255, 255, 255, 0.15);
+  --border-subtle: rgba(255, 255, 255, 0.08);
+
+  /* ── Text (яркий для контраста) ── */
+  --text-primary:   #ffffff;
+  --text-secondary: #cdd9e6;
+  --text-muted:     #8f9eb0;
+
+  /* ── Accents (насыщенные, хорошо читаются на стекле) ── */
+  --accent-yellow: #f5b82e;
+  --accent-green:  #3dd68c;
+  --accent-red:    #f46060;
+  --accent-blue:   #5291f0;
+}
