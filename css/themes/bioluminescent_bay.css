@@ -1,0 +1,221 @@
+/* ═══════════════════════════════════════════════════════
+   themes/bioluminescent-bay.css
+   Bioluminescent Bay — глубокая вода, свечение планктона.
+   Тёмно-синий фон с неоново-голубыми акцентами и шлейфами.
+   ═══════════════════════════════════════════════════════ */
+
+:root[data-theme="bioluminescent-bay"] {
+  --font-display: 'Quicksand', sans-serif;
+  --font-body:    'Inter', sans-serif;
+
+  --accent-yellow: #c8ffb0;
+  --accent-green:  #5fffd9;
+  --accent-red:    #ff7a9e;
+  --accent-blue:   #4dd0ff;
+
+  --text-primary:   rgba(220, 240, 255, 0.95);
+  --text-secondary: rgba(170, 210, 240, 0.70);
+  --text-muted:     rgba(120, 170, 210, 0.45);
+
+  --border:        rgba(80, 200, 255, 0.12);
+  --border-subtle: rgba(80, 200, 255, 0.06);
+
+  --bg-primary:   transparent;
+  --bg-secondary: rgba(10, 25, 45, 0.50);
+  --bg-card:      rgba(15, 35, 60, 0.55);
+  --bg-sidebar:   rgba(10, 25, 45, 0.65);
+  --bg-header:    rgba(5, 15, 30, 0.75);
+  --bg-thead:     rgba(20, 45, 75, 0.50);
+  --bg-input:     rgba(20, 40, 65, 0.60);
+  --bg-hover:     rgba(80, 200, 255, 0.08);
+  --bg-row-hover: rgba(80, 200, 255, 0.06);
+  --bg-tooltip:   rgba(5, 20, 40, 0.95);
+}
+
+:root[data-theme="bioluminescent-bay"] body {
+  background: 
+    radial-gradient(circle at 30% 40%, rgba(0, 180, 255, 0.08) 0%, transparent 45%),
+    radial-gradient(circle at 70% 70%, rgba(100, 255, 200, 0.05) 0%, transparent 50%),
+    radial-gradient(circle at 50% 20%, rgba(80, 200, 255, 0.06) 0%, transparent 40%),
+    #071220;
+  background-attachment: fixed;
+  position: relative;
+}
+
+/* Эффект мерцающих точек (планктон) через псевдоэлемент */
+:root[data-theme="bioluminescent-bay"] body::before {
+  content: '';
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none;
+  background-image: 
+    radial-gradient(2px 2px at 15% 25%, rgba(100, 255, 220, 0.3), transparent),
+    radial-gradient(3px 3px at 72% 48%, rgba(80, 220, 255, 0.2), transparent),
+    radial-gradient(2px 2px at 88% 12%, rgba(100, 255, 200, 0.25), transparent),
+    radial-gradient(4px 4px at 35% 75%, rgba(60, 255, 240, 0.15), transparent),
+    radial-gradient(2px 2px at 55% 85%, rgba(120, 255, 220, 0.2), transparent),
+    radial-gradient(3px 3px at 10% 65%, rgba(80, 220, 255, 0.18), transparent);
+  background-repeat: no-repeat;
+  z-index: 0;
+}
+
+:root[data-theme="bioluminescent-bay"] .card,
+:root[data-theme="bioluminescent-bay"] .modal,
+:root[data-theme="bioluminescent-bay"] .stat-card,
+:root[data-theme="bioluminescent-bay"] .table-wrapper {
+  background: rgba(15, 35, 60, 0.55);
+  border: 1px solid rgba(80, 200, 255, 0.15);
+  backdrop-filter: blur(12px) saturate(1.4);
+  -webkit-backdrop-filter: blur(12px) saturate(1.4);
+  box-shadow: 0 4px 24px rgba(0, 20, 40, 0.6), inset 0 0 40px rgba(80, 200, 255, 0.05);
+  border-radius: 16px;
+}
+
+:root[data-theme="bioluminescent-bay"] .stat-card.green::before  { 
+  background: var(--accent-green);  
+  box-shadow: 0 0 20px var(--accent-green), 0 0 40px rgba(95, 255, 217, 0.4);
+}
+:root[data-theme="bioluminescent-bay"] .stat-card.yellow::before { 
+  background: var(--accent-yellow); 
+  box-shadow: 0 0 20px var(--accent-yellow), 0 0 40px rgba(200, 255, 176, 0.4);
+}
+:root[data-theme="bioluminescent-bay"] .stat-card.blue::before   { 
+  background: var(--accent-blue);   
+  box-shadow: 0 0 20px var(--accent-blue), 0 0 40px rgba(77, 208, 255, 0.4);
+}
+:root[data-theme="bioluminescent-bay"] .stat-card.red::before    { 
+  background: var(--accent-red);    
+  box-shadow: 0 0 20px var(--accent-red), 0 0 40px rgba(255, 122, 158, 0.4);
+}
+
+:root[data-theme="bioluminescent-bay"] #header {
+  background: rgba(5, 15, 30, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(80, 200, 255, 0.15);
+  box-shadow: 0 2px 20px rgba(0, 180, 255, 0.08);
+}
+
+:root[data-theme="bioluminescent-bay"] #sidebar {
+  background: rgba(10, 25, 45, 0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-right: 1px solid rgba(80, 200, 255, 0.10);
+}
+
+:root[data-theme="bioluminescent-bay"] .nav-item:hover {
+  background: rgba(80, 200, 255, 0.08);
+}
+:root[data-theme="bioluminescent-bay"] .nav-item.active {
+  background: rgba(77, 208, 255, 0.12);
+  border-left: 3px solid var(--accent-blue);
+  color: var(--accent-blue);
+  text-shadow: 0 0 8px rgba(77, 208, 255, 0.5);
+}
+
+:root[data-theme="bioluminescent-bay"] .input {
+  background: rgba(20, 40, 65, 0.60);
+  border: 1px solid rgba(80, 200, 255, 0.20);
+  color: var(--text-primary);
+  backdrop-filter: blur(6px);
+}
+:root[data-theme="bioluminescent-bay"] .input:focus {
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 12px rgba(77, 208, 255, 0.3);
+}
+
+:root[data-theme="bioluminescent-bay"] .btn-primary {
+  background: rgba(77, 208, 255, 0.85);
+  box-shadow: 0 0 20px rgba(77, 208, 255, 0.5);
+  color: #051020;
+  font-weight: 500;
+}
+:root[data-theme="bioluminescent-bay"] .btn-primary:hover:not(:disabled) {
+  background: rgba(110, 225, 255, 0.95);
+  box-shadow: 0 0 30px rgba(77, 208, 255, 0.7);
+}
+:root[data-theme="bioluminescent-bay"] .btn-ghost {
+  background: rgba(20, 40, 65, 0.40);
+  border: 1px solid rgba(80, 200, 255, 0.20);
+  color: var(--text-secondary);
+  backdrop-filter: blur(4px);
+}
+:root[data-theme="bioluminescent-bay"] .btn-ghost:hover:not(:disabled) {
+  background: rgba(80, 200, 255, 0.12);
+  border-color: rgba(80, 200, 255, 0.35);
+}
+:root[data-theme="bioluminescent-bay"] .btn-blue {
+  background: rgba(95, 255, 217, 0.80);
+  color: #051020;
+  box-shadow: 0 0 20px rgba(95, 255, 217, 0.5);
+}
+
+:root[data-theme="bioluminescent-bay"] thead th {
+  background: rgba(20, 45, 75, 0.50);
+  color: rgba(170, 220, 250, 0.6);
+  font-weight: 400;
+  letter-spacing: 1px;
+}
+:root[data-theme="bioluminescent-bay"] tbody tr:hover {
+  background: rgba(80, 200, 255, 0.06);
+}
+
+:root[data-theme="bioluminescent-bay"] .badge-closed  { background: rgba(95, 255, 217, 0.15); color: var(--accent-green); }
+:root[data-theme="bioluminescent-bay"] .badge-partial { background: rgba(200, 255, 176, 0.15); color: var(--accent-yellow); }
+:root[data-theme="bioluminescent-bay"] .badge-open    { background: rgba(255, 122, 158, 0.15); color: var(--accent-red); }
+
+:root[data-theme="bioluminescent-bay"] .pill-done-on {
+  background: rgba(95, 255, 217, 0.15);
+  border: 1px solid var(--accent-green);
+  color: var(--accent-green);
+  box-shadow: 0 0 12px rgba(95, 255, 217, 0.3);
+}
+:root[data-theme="bioluminescent-bay"] .pill-paid-on {
+  background: rgba(77, 208, 255, 0.15);
+  border: 1px solid var(--accent-blue);
+  color: var(--accent-blue);
+  box-shadow: 0 0 12px rgba(77, 208, 255, 0.3);
+}
+:root[data-theme="bioluminescent-bay"] .pill-done-off,
+:root[data-theme="bioluminescent-bay"] .pill-paid-off {
+  border: 1px solid rgba(80, 200, 255, 0.15);
+  color: rgba(120, 170, 210, 0.45);
+}
+
+:root[data-theme="bioluminescent-bay"] .logo span {
+  color: var(--accent-green);
+  text-shadow: 0 0 20px rgba(95, 255, 217, 0.7);
+}
+
+:root[data-theme="bioluminescent-bay"] .theme-dot.active {
+  border-color: var(--accent-blue) !important;
+  box-shadow: 0 0 15px rgba(77, 208, 255, 0.6);
+}
+
+:root[data-theme="bioluminescent-bay"] .toast {
+  background: rgba(5, 20, 40, 0.90);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(80, 200, 255, 0.25);
+  box-shadow: 0 0 30px rgba(80, 200, 255, 0.15);
+}
+
+:root[data-theme="bioluminescent-bay"] .modal {
+  background: rgba(10, 30, 55, 0.85);
+  backdrop-filter: blur(20px) saturate(1.6);
+  -webkit-backdrop-filter: blur(20px) saturate(1.6);
+  border: 1px solid rgba(80, 200, 255, 0.20);
+}
+:root[data-theme="bioluminescent-bay"] .modal-header {
+  background: rgba(20, 45, 75, 0.40);
+  border-bottom: 1px solid rgba(80, 200, 255, 0.12);
+}
+
+:root[data-theme="bioluminescent-bay"] ::-webkit-scrollbar-thumb {
+  background: rgba(80, 200, 255, 0.18);
+  border-radius: 8px;
+}
+
+:root[data-theme="bioluminescent-bay"] .grand-total {
+  background: rgba(77, 208, 255, 0.06);
+  border-top: 1px solid rgba(80, 200, 255, 0.15);
+}

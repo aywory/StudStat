@@ -1,0 +1,193 @@
+/* ═══════════════════════════════════════════════════════
+   themes/cracked-salt-flats.css
+   Cracked Salt Flats — выжженная соль, геометрические трещины.
+   Абсолютный минимализм, белый цвет, тонкая графика.
+   ═══════════════════════════════════════════════════════ */
+
+:root[data-theme="cracked-salt-flats"] {
+  --font-display: 'Inter', sans-serif;
+  --font-body:    'Inter', sans-serif;
+
+  --accent-yellow: #e8d8c0;
+  --accent-green:  #c0c8b0;
+  --accent-red:    #d0a090;
+  --accent-blue:   #b0bcc8;
+
+  --text-primary:   #2a2828;
+  --text-secondary: #585450;
+  --text-muted:     #908880;
+
+  --border:        rgba(0, 0, 0, 0.08);
+  --border-subtle: rgba(0, 0, 0, 0.04);
+
+  --bg-primary:   transparent;
+  --bg-secondary: #fafaf8;
+  --bg-card:      #fefefc;
+  --bg-sidebar:   #f8f8f6;
+  --bg-header:    #fefefc;
+  --bg-thead:     #f0f0ec;
+  --bg-input:     #ffffff;
+  --bg-hover:     rgba(0, 0, 0, 0.02);
+  --bg-row-hover: rgba(0, 0, 0, 0.015);
+  --bg-tooltip:   #2a2828;
+}
+
+:root[data-theme="cracked-salt-flats"] body {
+  background: #fcfcf9;
+  background-image: 
+    linear-gradient(90deg, rgba(0,0,0,0.02) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(0,0,0,0.02) 1px, transparent 1px);
+  background-size: 40px 40px;
+  background-attachment: fixed;
+}
+
+/* Трещины соли — геометрическая сетка */
+:root[data-theme="cracked-salt-flats"] body::after {
+  content: '';
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none;
+  background-image: 
+    repeating-linear-gradient(45deg, transparent 0px, transparent 79px, rgba(0,0,0,0.03) 79px, rgba(0,0,0,0.03) 80px),
+    repeating-linear-gradient(135deg, transparent 0px, transparent 79px, rgba(0,0,0,0.02) 79px, rgba(0,0,0,0.02) 80px);
+  z-index: 0;
+}
+
+:root[data-theme="cracked-salt-flats"] .card,
+:root[data-theme="cracked-salt-flats"] .modal,
+:root[data-theme="cracked-salt-flats"] .stat-card,
+:root[data-theme="cracked-salt-flats"] .table-wrapper {
+  background: #fefefc;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+  border-radius: 2px;
+}
+
+:root[data-theme="cracked-salt-flats"] .stat-card.green::before  { background: var(--accent-green);  height: 3px; }
+:root[data-theme="cracked-salt-flats"] .stat-card.yellow::before { background: var(--accent-yellow); height: 3px; }
+:root[data-theme="cracked-salt-flats"] .stat-card.blue::before   { background: var(--accent-blue);   height: 3px; }
+:root[data-theme="cracked-salt-flats"] .stat-card.red::before    { background: var(--accent-red);    height: 3px; }
+
+:root[data-theme="cracked-salt-flats"] #header {
+  background: #fefefc;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: none;
+}
+
+:root[data-theme="cracked-salt-flats"] #sidebar {
+  background: #f8f8f6;
+  border-right: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+:root[data-theme="cracked-salt-flats"] .nav-item:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+:root[data-theme="cracked-salt-flats"] .nav-item.active {
+  background: rgba(0, 0, 0, 0.04);
+  border-left: 2px solid #2a2828;
+  color: #2a2828;
+  font-weight: 500;
+}
+
+:root[data-theme="cracked-salt-flats"] .input {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.10);
+  color: #2a2828;
+  border-radius: 2px;
+}
+:root[data-theme="cracked-salt-flats"] .input:focus {
+  border-color: #2a2828;
+  box-shadow: none;
+  outline: 2px solid rgba(0,0,0,0.05);
+}
+
+:root[data-theme="cracked-salt-flats"] .btn-primary {
+  background: #2a2828;
+  box-shadow: none;
+  color: #fefefc;
+  border-radius: 2px;
+}
+:root[data-theme="cracked-salt-flats"] .btn-primary:hover:not(:disabled) {
+  background: #3a3838;
+}
+:root[data-theme="cracked-salt-flats"] .btn-ghost {
+  background: transparent;
+  border: 1px solid rgba(0, 0, 0, 0.10);
+  color: #585450;
+}
+:root[data-theme="cracked-salt-flats"] .btn-ghost:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.02);
+  border-color: rgba(0, 0, 0, 0.18);
+}
+:root[data-theme="cracked-salt-flats"] .btn-blue {
+  background: #b0bcc8;
+  color: #2a2828;
+  box-shadow: none;
+}
+
+:root[data-theme="cracked-salt-flats"] thead th {
+  background: #f0f0ec;
+  color: #585450;
+  font-weight: 500;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  letter-spacing: 0.8px;
+}
+:root[data-theme="cracked-salt-flats"] tbody tr:hover {
+  background: rgba(0, 0, 0, 0.015);
+}
+
+:root[data-theme="cracked-salt-flats"] .badge-closed  { background: rgba(0, 0, 0, 0.04); color: #2a2828; }
+:root[data-theme="cracked-salt-flats"] .badge-partial { background: rgba(0, 0, 0, 0.04); color: #2a2828; }
+:root[data-theme="cracked-salt-flats"] .badge-open    { background: rgba(0, 0, 0, 0.04); color: #2a2828; }
+
+:root[data-theme="cracked-salt-flats"] .pill-done-on {
+  background: transparent;
+  border: 1px solid #2a2828;
+  color: #2a2828;
+}
+:root[data-theme="cracked-salt-flats"] .pill-paid-on {
+  background: transparent;
+  border: 1px solid #2a2828;
+  color: #2a2828;
+}
+:root[data-theme="cracked-salt-flats"] .pill-done-off,
+:root[data-theme="cracked-salt-flats"] .pill-paid-off {
+  border: 1px solid rgba(0, 0, 0, 0.10);
+  color: #908880;
+}
+
+:root[data-theme="cracked-salt-flats"] .logo span {
+  color: #2a2828;
+  text-shadow: none;
+  font-weight: 400;
+}
+
+:root[data-theme="cracked-salt-flats"] .theme-dot.active {
+  border-color: #2a2828 !important;
+  box-shadow: none;
+}
+
+:root[data-theme="cracked-salt-flats"] .toast {
+  background: #2a2828;
+  border: none;
+  color: #fefefc;
+}
+
+:root[data-theme="cracked-salt-flats"] .modal {
+  background: #fefefc;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+:root[data-theme="cracked-salt-flats"] .modal-header {
+  background: #f8f8f6;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+:root[data-theme="cracked-salt-flats"] ::-webkit-scrollbar-thumb {
+  background: #c0c0bc;
+}
+
+:root[data-theme="cracked-salt-flats"] .grand-total {
+  background: #f8f8f6;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}

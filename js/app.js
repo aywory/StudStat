@@ -16,18 +16,57 @@ const App = (() => {
 
   /* ── Theme registry ─────────────────────────── */
   const BASE_THEMES = [
-    { id: 'dark',  label: 'Тёмная',  bg: '#111111', border: '#3a3a3a' },
-    { id: 'white', label: 'Светлая', bg: '#f0f0f0',  border: '#cccccc' },
+    { id: 'dark', label: 'Тёмная', bg: '#111111', border: '#3a3a3a' },
+    { id: 'white', label: 'Светлая', bg: '#f0f0f0', border: '#cccccc' },
   ];
 
   const EXTRA_THEMES = [
-    { id: 'glassmorphism', label: 'Glassmorphism', bg: 'linear-gradient(135deg,#6ec6ff,#b388ff)', border: '#aad4f5' },
-    // add more here as you create theme files:
-    // { id: 'solarized', label: 'Solarized', bg: '#002b36', border: '#073642' },
+    {
+      id: 'glassmorphism',
+      label: 'Glassmorphism',
+      bg: 'linear-gradient(135deg, #6ec6ff, #b388ff)',
+      border: '#aad4f5'
+    },
+    {
+      id: 'wabi-sabi-clay',
+      label: 'Wabi-Sabi Clay',
+      bg: 'linear-gradient(135deg, #d4a373, #bc8f6c, #e8d5c4)',
+      border: '#c4a48a'
+    },
+    {
+      id: 'bioluminescent-bay',
+      label: 'Bioluminescent Bay',
+      bg: 'radial-gradient(circle at 30% 40%, #0a2540, #071220, #020a14)',
+      border: '#4dd0ff'
+    },
+    {
+      id: 'agate-slice',
+      label: 'Agate Slice',
+      bg: 'linear-gradient(145deg, #e8d5f0, #d4c0e0, #f0e0f0, #c8b0d0)',
+      border: '#b8a0c8'
+    },
+    {
+      id: 'cracked-salt-flats',
+      label: 'Cracked Salt Flats',
+      bg: 'linear-gradient(135deg, #fafaf8, #f0f0ec, #e8e8e4)',
+      border: '#2a2828'
+    },
+    {
+      id: 'foggy-redwood',
+      label: 'Foggy Redwood',
+      bg: 'linear-gradient(180deg, #c8d8c0 0%, #2a3a28 60%, #1a2218 100%)',
+      border: '#6a9a6a'
+    },
+    {
+      id: 'phosphor-decay',
+      label: 'Phosphor Decay',
+      bg: 'linear-gradient(135deg, #001a00, #002800, #001400)',
+      border: '#40ff80'
+    },
   ];
 
   /* ── State ──────────────────────────────────── */
-  let _view  = null;
+  let _view = null;
   let _semId = null;
 
   /* ── Init ───────────────────────────────────── */
@@ -75,7 +114,7 @@ const App = (() => {
 
     document.getElementById('fp-reverify').addEventListener('click', async () => {
       const res = await Storage.reVerify(handle);
-      if (res.ok) { fp.style.display='none'; _boot(); }
+      if (res.ok) { fp.style.display = 'none'; _boot(); }
       else UI.toast('Нет доступа к файлу', 'error');
     });
     document.getElementById('fp-other').addEventListener('click', async () => {
@@ -102,13 +141,13 @@ const App = (() => {
 
     document.getElementById('fp-open').addEventListener('click', async () => {
       const res = await Storage.openFile();
-      if (res.ok) { fp.style.display='none'; _boot(); }
-      else if (!res.aborted) UI.toast('Ошибка: ' + (res.error||''), 'error');
+      if (res.ok) { fp.style.display = 'none'; _boot(); }
+      else if (!res.aborted) UI.toast('Ошибка: ' + (res.error || ''), 'error');
     });
     document.getElementById('fp-create').addEventListener('click', async () => {
       const res = await Storage.createFile();
-      if (res.ok) { fp.style.display='none'; _boot(); }
-      else if (!res.aborted) UI.toast('Ошибка: ' + (res.error||''), 'error');
+      if (res.ok) { fp.style.display = 'none'; _boot(); }
+      else if (!res.aborted) UI.toast('Ошибка: ' + (res.error || ''), 'error');
     });
   }
 
@@ -121,16 +160,16 @@ const App = (() => {
 
   /* ── Navigation ─────────────────────────────── */
   function navigate(view, semId = null) {
-    _view  = view;
+    _view = view;
     _semId = semId;
     _buildSidebar();
     const main = document.getElementById('main');
     main.innerHTML = '';
     switch (view) {
-      case 'dashboard':  DashboardView.mount(main);          break;
-      case 'records':    RecordsView.mount(semId, main);     break;
-      case 'analytics':  AnalyticsView.mount(semId, main);   break;
-      case 'semesters':  _mountSemesters(main);               break;
+      case 'dashboard': DashboardView.mount(main); break;
+      case 'records': RecordsView.mount(semId, main); break;
+      case 'analytics': AnalyticsView.mount(semId, main); break;
+      case 'semesters': _mountSemesters(main); break;
     }
   }
 
@@ -167,7 +206,7 @@ const App = (() => {
 
   /* ── Theme picker ────────────────────────────── */
   function _makeThemePicker() {
-    const cur  = document.documentElement.getAttribute('data-theme');
+    const cur = document.documentElement.getAttribute('data-theme');
     const wrap = document.createElement('div');
     wrap.className = 'theme-picker';
     wrap.style.position = 'relative';
@@ -202,7 +241,7 @@ const App = (() => {
   }
 
   function _refreshPickerState(wrap) {
-    const cur  = document.documentElement.getAttribute('data-theme');
+    const cur = document.documentElement.getAttribute('data-theme');
     const dots = wrap.querySelectorAll('.theme-dot');
     dots.forEach((d, i) => d.classList.toggle('active', BASE_THEMES[i]?.id === cur));
     const pill = wrap.querySelector('.theme-more-btn');
@@ -214,7 +253,7 @@ const App = (() => {
     if (existing) { existing.remove(); return; }
 
     const cur = document.documentElement.getAttribute('data-theme');
-    const dd  = document.createElement('div');
+    const dd = document.createElement('div');
     dd.className = 'theme-dropdown';
 
     /* List ALL themes in dropdown (including base) for discoverability */
@@ -262,14 +301,14 @@ const App = (() => {
     sb.innerHTML = '';
 
     _navSection(sb, 'Главная');
-    sb.appendChild(_navItem('🏠', 'Обзор',    'dashboard', null));
+    sb.appendChild(_navItem('🏠', 'Обзор', 'dashboard', null));
     sb.appendChild(_navItem('⚙', 'Семестры', 'semesters', null));
 
     const sems = Storage.getSemesters();
     if (sems.length) {
       _divider(sb);
       _navSection(sb, 'Учёт');
-      sems.forEach(s => sb.appendChild(_navItem('📋', s.label, 'records',   s.id)));
+      sems.forEach(s => sb.appendChild(_navItem('📋', s.label, 'records', s.id)));
       _divider(sb);
       _navSection(sb, 'Аналитика');
       sems.forEach(s => sb.appendChild(_navItem('📊', s.label, 'analytics', s.id)));
@@ -277,14 +316,14 @@ const App = (() => {
   }
 
   function _navSection(sb, t) {
-    const d = document.createElement('div'); d.className='nav-section'; d.textContent=t; sb.appendChild(d);
+    const d = document.createElement('div'); d.className = 'nav-section'; d.textContent = t; sb.appendChild(d);
   }
   function _divider(sb) {
-    const d = document.createElement('div'); d.className='sidebar-divider'; sb.appendChild(d);
+    const d = document.createElement('div'); d.className = 'sidebar-divider'; sb.appendChild(d);
   }
   function _navItem(icon, text, view, semId) {
     const el = document.createElement('div');
-    el.className = 'nav-item' + (_view===view && _semId===semId ? ' active' : '');
+    el.className = 'nav-item' + (_view === view && _semId === semId ? ' active' : '');
     el.innerHTML = `<span class="nav-icon">${icon}</span><span>${_esc(text)}</span>`;
     el.addEventListener('click', () => navigate(view, semId));
     return el;
@@ -293,10 +332,10 @@ const App = (() => {
   /* ── Semesters ───────────────────────────────── */
   function _mountSemesters(container) {
     const wrap = document.createElement('div');
-    const ph   = document.createElement('div');
+    const ph = document.createElement('div');
     ph.className = 'page-header';
     ph.innerHTML = `<div class="page-header-left"><h2>Семестры</h2><p class="mt-sm">Управление учебными периодами</p></div>`;
-    ph.appendChild(UI.Button({ text:'+ Новый семестр', variant:'primary', onClick:_semForm }));
+    ph.appendChild(UI.Button({ text: '+ Новый семестр', variant: 'primary', onClick: _semForm }));
     wrap.appendChild(ph);
 
     const sems = Storage.getSemesters();
@@ -307,14 +346,14 @@ const App = (() => {
       grid.className = 'grid-3 mt-md';
       sems.forEach(sem => {
         const recs = Storage.getRecords(sem.id);
-        const sum  = recs.reduce((s,r)=>s+(r.price||0),0);
+        const sum = recs.reduce((s, r) => s + (r.price || 0), 0);
         const card = document.createElement('div');
         card.className = 'card';
         card.innerHTML = `<div class="card-header"><h3>${_esc(sem.label)}</h3></div><p style="font-size:.8rem;margin-bottom:.75rem">${recs.length} работ · ${sum} ₴</p>`;
-        const acts = document.createElement('div'); acts.className='flex gap-sm';
-        acts.appendChild(UI.Button({ text:'Учёт',      variant:'blue',   size:'sm', onClick:()=>navigate('records',   sem.id) }));
-        acts.appendChild(UI.Button({ text:'Аналитика', variant:'ghost',  size:'sm', onClick:()=>navigate('analytics', sem.id) }));
-        acts.appendChild(UI.Button({ text:'✕',         variant:'danger', size:'sm', onClick:()=>_delSem(sem.id) }));
+        const acts = document.createElement('div'); acts.className = 'flex gap-sm';
+        acts.appendChild(UI.Button({ text: 'Учёт', variant: 'blue', size: 'sm', onClick: () => navigate('records', sem.id) }));
+        acts.appendChild(UI.Button({ text: 'Аналитика', variant: 'ghost', size: 'sm', onClick: () => navigate('analytics', sem.id) }));
+        acts.appendChild(UI.Button({ text: '✕', variant: 'danger', size: 'sm', onClick: () => _delSem(sem.id) }));
         card.appendChild(acts);
         grid.appendChild(card);
       });
@@ -324,31 +363,33 @@ const App = (() => {
   }
 
   async function _semForm() {
-    const labelInp = UI.Input({ placeholder:'2 курс 1 семестр 2025г.' });
-    const yearInp  = UI.Input({ type:'number', value:new Date().getFullYear() });
+    const labelInp = UI.Input({ placeholder: '2 курс 1 семестр 2025г.' });
+    const yearInp = UI.Input({ type: 'number', value: new Date().getFullYear() });
     const body = document.createElement('div');
-    body.style.cssText='display:flex;flex-direction:column;gap:1rem';
-    body.appendChild(UI.FormGroup({label:'Название *',child:labelInp}));
-    body.appendChild(UI.FormGroup({label:'Год',       child:yearInp }));
-    const cancel=UI.Button({text:'Отмена', variant:'ghost',   onClick:()=>UI.closeModal()});
-    const ok    =UI.Button({text:'Создать',variant:'primary', onClick:()=>{
-      const label=labelInp.value.trim();
-      if(!label){UI.toast('Введите название','error');return;}
-      Storage.addSemester({label,year:+yearInp.value||new Date().getFullYear()});
-      UI.closeModal(); UI.toast('Семестр создан'); navigate('semesters');
-    }});
-    await UI.openModal({title:'Новый семестр',bodyEl:body,footerActions:[cancel,ok]});
+    body.style.cssText = 'display:flex;flex-direction:column;gap:1rem';
+    body.appendChild(UI.FormGroup({ label: 'Название *', child: labelInp }));
+    body.appendChild(UI.FormGroup({ label: 'Год', child: yearInp }));
+    const cancel = UI.Button({ text: 'Отмена', variant: 'ghost', onClick: () => UI.closeModal() });
+    const ok = UI.Button({
+      text: 'Создать', variant: 'primary', onClick: () => {
+        const label = labelInp.value.trim();
+        if (!label) { UI.toast('Введите название', 'error'); return; }
+        Storage.addSemester({ label, year: +yearInp.value || new Date().getFullYear() });
+        UI.closeModal(); UI.toast('Семестр создан'); navigate('semesters');
+      }
+    });
+    await UI.openModal({ title: 'Новый семестр', bodyEl: body, footerActions: [cancel, ok] });
   }
 
   async function _delSem(id) {
-    const sem  = Storage.getSemesters().find(s=>s.id===id);
+    const sem = Storage.getSemesters().find(s => s.id === id);
     const recs = Storage.getRecords(id);
-    const ok   = await UI.confirmDialog({
-      message:`Удалить «${sem?.label}»? Вместе с ним ${recs.length} записей.`,
-      confirmText:'Удалить', confirmVariant:'danger'
+    const ok = await UI.confirmDialog({
+      message: `Удалить «${sem?.label}»? Вместе с ним ${recs.length} записей.`,
+      confirmText: 'Удалить', confirmVariant: 'danger'
     });
     if (!ok) return;
-    Storage.deleteSemester(id); UI.toast('Удалено','warn'); navigate('semesters');
+    Storage.deleteSemester(id); UI.toast('Удалено', 'warn'); navigate('semesters');
   }
 
   /* ── Modal shell ─────────────────────────────── */
@@ -365,12 +406,12 @@ const App = (() => {
         <div class="modal-body"></div>
         <div class="modal-footer"></div>
       </div>`;
-    bd.addEventListener('click', e => { if(e.target===bd) UI.closeModal(); });
-    bd.querySelector('#modal-close').addEventListener('click', ()=>UI.closeModal());
+    bd.addEventListener('click', e => { if (e.target === bd) UI.closeModal(); });
+    bd.querySelector('#modal-close').addEventListener('click', () => UI.closeModal());
     document.body.appendChild(bd);
   }
 
-  function _esc(s) { return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function _esc(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
   return { init, navigate };
 })();
