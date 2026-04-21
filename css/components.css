@@ -1,0 +1,217 @@
+/* ═══════════════════════════════════════════
+   COMPONENTS.CSS — tables, forms, buttons
+   ═══════════════════════════════════════════ */
+
+/* ═══ BUTTONS ═══════════════════════════════ */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem;
+  padding: 0.5rem 1rem;
+  font-family: var(--font-body); font-size: 0.82rem; font-weight: 600;
+  border-radius: 4px; border: 1px solid transparent;
+  cursor: pointer; transition: all 0.15s; white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-icon { padding: 0.45rem 0.5rem; }
+
+/* Variants */
+.btn-primary {
+  background: var(--accent-yellow); color: #000;
+  border-color: var(--accent-yellow);
+}
+.btn-primary:hover:not(:disabled) { filter: brightness(1.1); }
+
+.btn-success {
+  background: var(--accent-green); color: #000;
+  border-color: var(--accent-green);
+}
+.btn-success:hover:not(:disabled) { filter: brightness(1.1); }
+
+.btn-danger {
+  background: transparent; color: var(--accent-red);
+  border-color: var(--accent-red);
+}
+.btn-danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent-red) 12%, transparent);
+}
+
+.btn-ghost {
+  background: transparent; color: var(--text-secondary);
+  border-color: var(--border);
+}
+.btn-ghost:hover:not(:disabled) { background: var(--bg-hover); color: var(--text-primary); }
+
+.btn-blue {
+  background: var(--accent-blue); color: #fff;
+  border-color: var(--accent-blue);
+}
+.btn-blue:hover:not(:disabled) { filter: brightness(1.1); }
+
+.btn-sm { padding: 0.3rem 0.65rem; font-size: 0.75rem; }
+.btn-lg { padding: 0.7rem 1.4rem; font-size: 0.9rem; }
+
+/* ═══ FORM ELEMENTS ════════════════════════ */
+.form-group { display: flex; flex-direction: column; gap: 0.35rem; }
+.form-label {
+  font-size: 0.75rem; font-weight: 600;
+  letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--text-muted);
+}
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+
+.input {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.5rem 0.75rem;
+  font-family: var(--font-body); font-size: 0.85rem;
+  color: var(--text-primary);
+  transition: border-color 0.15s;
+  width: 100%;
+}
+.input:focus { outline: none; border-color: var(--accent-yellow); }
+.input::placeholder { color: var(--text-muted); }
+.input-error { border-color: var(--accent-red) !important; }
+
+select.input { cursor: pointer; }
+select.input option { background: var(--bg-card); }
+
+/* ═══ TABLE ══════════════════════════════════ */
+.table-wrapper {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+table {
+  width: 100%; border-collapse: collapse;
+  font-size: 0.82rem;
+}
+thead th {
+  background: var(--bg-thead);
+  color: var(--text-muted);
+  font-size: 0.7rem; font-weight: 700;
+  letter-spacing: 0.07em; text-transform: uppercase;
+  padding: 0.6rem 0.85rem;
+  text-align: left; white-space: nowrap;
+  border-bottom: 1px solid var(--border);
+  user-select: none; cursor: pointer; position: relative;
+}
+thead th:hover { color: var(--text-primary); }
+thead th.sorted-asc::after  { content: ' ↑'; color: var(--accent-yellow); }
+thead th.sorted-desc::after { content: ' ↓'; color: var(--accent-yellow); }
+thead th.no-sort { cursor: default; }
+
+tbody tr {
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background 0.1s;
+}
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: var(--bg-row-hover); }
+
+td {
+  padding: 0.55rem 0.85rem;
+  color: var(--text-primary);
+  vertical-align: middle;
+}
+
+.td-num { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Row actions (shown on hover) */
+.row-actions { display: flex; gap: 0.3rem; opacity: 0; transition: opacity 0.15s; }
+tbody tr:hover .row-actions { opacity: 1; }
+
+/* ═══ SEARCH / FILTER BAR ════════════════════ */
+.filter-bar {
+  display: flex; align-items: center; gap: 0.75rem;
+  flex-wrap: wrap; margin-bottom: 1rem;
+}
+.search-wrap {
+  position: relative; flex: 1; min-width: 180px;
+}
+.search-wrap .search-icon {
+  position: absolute; left: 0.65rem; top: 50%; transform: translateY(-50%);
+  color: var(--text-muted); pointer-events: none; font-size: 0.9rem;
+}
+.search-wrap .input { padding-left: 2rem; }
+
+/* ═══ PAGINATION ═════════════════════════════ */
+.pagination {
+  display: flex; align-items: center; gap: 0.35rem;
+  justify-content: flex-end; margin-top: 0.75rem;
+}
+.pagination .page-btn {
+  min-width: 28px; height: 28px;
+  font-size: 0.78rem; border-radius: 3px;
+  background: transparent; color: var(--text-secondary);
+  border: 1px solid var(--border); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.1s;
+}
+.pagination .page-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.pagination .page-btn.active { background: var(--accent-yellow); color: #000; border-color: var(--accent-yellow); font-weight: 700; }
+.pagination .page-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.page-info { font-size: 0.75rem; color: var(--text-muted); margin-right: 0.25rem; }
+
+/* ═══ CHARTS ══════════════════════════════════ */
+.chart-container { position: relative; width: 100%; }
+
+/* ═══ SUMMARY TABLE ═══════════════════════════ */
+.summary-table td:first-child { font-weight: 600; }
+.summary-table .sub-row td:first-child { padding-left: 2rem; font-weight: 400; color: var(--text-secondary); }
+.summary-table .grand-total { background: color-mix(in srgb, var(--accent-yellow) 8%, transparent); }
+.summary-table .grand-total td { font-weight: 700; }
+
+/* ═══ EMPTY STATE ══════════════════════════════ */
+.empty-state {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 3rem 1rem; color: var(--text-muted); gap: 0.5rem;
+}
+.empty-state .empty-icon { font-size: 2.5rem; opacity: 0.4; }
+.empty-state p { font-size: 0.85rem; }
+
+/* ═══ THEME SWITCHER ═══════════════════════════ */
+.theme-picker {
+  display: flex; gap: 0.35rem; align-items: center;
+}
+.theme-dot {
+  width: 18px; height: 18px; border-radius: 50%;
+  border: 2px solid transparent; cursor: pointer;
+  transition: transform 0.15s, border-color 0.15s;
+}
+.theme-dot:hover { transform: scale(1.2); }
+.theme-dot.active { border-color: var(--text-primary); }
+
+/* ═══ LOADING SPINNER ══════════════════════════ */
+.spinner {
+  width: 20px; height: 20px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent-yellow);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+/* ═══ CONTEXT SELECTOR (semester tabs) ════════ */
+.context-tabs {
+  display: flex; gap: 0; border: 1px solid var(--border); border-radius: 4px;
+  overflow: hidden;
+}
+.context-tab {
+  padding: 0.4rem 0.9rem; font-size: 0.78rem; font-weight: 600;
+  cursor: pointer; background: transparent;
+  color: var(--text-muted); border: none;
+  transition: all 0.15s; white-space: nowrap;
+}
+.context-tab:not(:last-child) { border-right: 1px solid var(--border); }
+.context-tab:hover { background: var(--bg-hover); color: var(--text-primary); }
+.context-tab.active { background: var(--accent-yellow); color: #000; font-weight: 700; }
+
+/* ═══ MINI CHART BARS ══════════════════════════ */
+.bar-chart-inline {
+  display: flex; align-items: flex-end; gap: 2px; height: 40px;
+}
+.bar-chart-inline .bar {
+  flex: 1; background: var(--accent-blue); border-radius: 2px 2px 0 0;
+  min-width: 6px; transition: background 0.15s;
+}
+.bar-chart-inline .bar:hover { background: var(--accent-yellow); }

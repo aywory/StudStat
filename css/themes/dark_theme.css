@@ -1,0 +1,36 @@
+/* ═══════════════════════════════════════════
+   themes/dark_theme.css
+   ═══════════════════════════════════════════ */
+
+:root[data-theme="dark"] {
+  /* ── Fonts ── */
+  --font-display: 'JetBrains Mono', 'Fira Code', monospace;
+  --font-body:    'JetBrains Mono', 'Fira Code', monospace;
+
+  /* ── Backgrounds ── */
+  --bg-primary:   #0d0d0d;
+  --bg-secondary: #161616;
+  --bg-card:      #181818;
+  --bg-sidebar:   #111111;
+  --bg-header:    rgba(13,13,13,0.92);
+  --bg-thead:     #161616;
+  --bg-input:     #1e1e1e;
+  --bg-hover:     rgba(255,255,255,0.04);
+  --bg-row-hover: rgba(255,255,255,0.03);
+  --bg-tooltip:   #2a2a2a;
+
+  /* ── Borders ── */
+  --border:        #252525;
+  --border-subtle: #1e1e1e;
+
+  /* ── Text ── */
+  --text-primary:   #e8e8e8;
+  --text-secondary: #999;
+  --text-muted:     #555;
+
+  /* ── Accents ── */
+  --accent-yellow: #f0c040;
+  --accent-green:  #3ddc84;
+  --accent-red:    #ff4d4d;
+  --accent-blue:   #4d9fff;
+}

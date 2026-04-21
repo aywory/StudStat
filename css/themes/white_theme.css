@@ -1,0 +1,36 @@
+/* ═══════════════════════════════════════════
+   themes/white_theme.css
+   ═══════════════════════════════════════════ */
+
+:root[data-theme="white"] {
+  /* ── Fonts ── */
+  --font-display: 'DM Mono', 'Courier New', monospace;
+  --font-body:    'DM Mono', 'Courier New', monospace;
+
+  /* ── Backgrounds ── */
+  --bg-primary:   #f5f5f5;
+  --bg-secondary: #ebebeb;
+  --bg-card:      #ffffff;
+  --bg-sidebar:   #fafafa;
+  --bg-header:    rgba(245,245,245,0.92);
+  --bg-thead:     #f0f0f0;
+  --bg-input:     #ffffff;
+  --bg-hover:     rgba(0,0,0,0.03);
+  --bg-row-hover: rgba(0,0,0,0.02);
+  --bg-tooltip:   #2a2a2a;
+
+  /* ── Borders ── */
+  --border:        #e0e0e0;
+  --border-subtle: #ececec;
+
+  /* ── Text ── */
+  --text-primary:   #111111;
+  --text-secondary: #555;
+  --text-muted:     #999;
+
+  /* ── Accents ── */
+  --accent-yellow: #d4960a;
+  --accent-green:  #1e8a4a;
+  --accent-red:    #d63030;
+  --accent-blue:   #1a6fcf;
+}
