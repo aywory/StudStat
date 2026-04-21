@@ -1,0 +1,180 @@
+/* ═══════════════════════════════════════════════════════
+   themes/wabi-sabi-clay.css
+   Wabi-Sabi Clay — сырая штукатурка, глина, трещины.
+   Тёплые землистые цвета, матовые текстуры без блеска.
+   ═══════════════════════════════════════════════════════ */
+
+:root[data-theme="wabi-sabi-clay"] {
+  --font-display: 'Cormorant Garamond', serif;
+  --font-body:    'Inter', sans-serif;
+
+  --accent-yellow: #d4a373;
+  --accent-green:  #7f9172;
+  --accent-red:    #bc6c25;
+  --accent-blue:   #6b7b8e;
+
+  --text-primary:   #3a2e28;
+  --text-secondary: #5e4e45;
+  --text-muted:     #8b7a6e;
+
+  --border:        rgba(120, 90, 70, 0.18);
+  --border-subtle: rgba(120, 90, 70, 0.08);
+
+  --bg-primary:   transparent;
+  --bg-secondary: #f3efe8;
+  --bg-card:      #e8e0d5;
+  --bg-sidebar:   #eae3d9;
+  --bg-header:    #f3efe8;
+  --bg-thead:     #dfd5c9;
+  --bg-input:     #fcfaf7;
+  --bg-hover:     rgba(180, 140, 110, 0.10);
+  --bg-row-hover: rgba(180, 140, 110, 0.07);
+  --bg-tooltip:   #4a3f38;
+}
+
+:root[data-theme="wabi-sabi-clay"] body {
+  background-color: #f5f0e9;
+  background-image: 
+    repeating-linear-gradient(45deg, rgba(160,130,100,0.02) 0px, rgba(160,130,100,0.02) 2px, transparent 2px, transparent 8px),
+    radial-gradient(circle at 30% 40%, rgba(200,170,140,0.08) 0%, transparent 50%),
+    radial-gradient(circle at 70% 80%, rgba(150,120,90,0.06) 0%, transparent 60%);
+  background-attachment: fixed;
+}
+
+:root[data-theme="wabi-sabi-clay"] .card,
+:root[data-theme="wabi-sabi-clay"] .modal,
+:root[data-theme="wabi-sabi-clay"] .stat-card,
+:root[data-theme="wabi-sabi-clay"] .table-wrapper {
+  background: #e8e0d5;
+  border: 1px solid rgba(140, 110, 85, 0.12);
+  box-shadow: 4px 6px 12px rgba(80, 50, 30, 0.08), inset 0 1px 3px rgba(255,255,255,0.6);
+  border-radius: 6px 18px 12px 8px;
+}
+
+:root[data-theme="wabi-sabi-clay"] .stat-card.green::before  { background: var(--accent-green);  opacity: 0.7; }
+:root[data-theme="wabi-sabi-clay"] .stat-card.yellow::before { background: var(--accent-yellow); opacity: 0.7; }
+:root[data-theme="wabi-sabi-clay"] .stat-card.blue::before   { background: var(--accent-blue);   opacity: 0.7; }
+:root[data-theme="wabi-sabi-clay"] .stat-card.red::before    { background: var(--accent-red);    opacity: 0.7; }
+
+:root[data-theme="wabi-sabi-clay"] #header {
+  background: #f3efe8;
+  border-bottom: 1px solid rgba(120, 90, 70, 0.12);
+  box-shadow: 0 2px 8px rgba(80, 50, 30, 0.04);
+}
+
+:root[data-theme="wabi-sabi-clay"] #sidebar {
+  background: #eae3d9;
+  border-right: 1px solid rgba(120, 90, 70, 0.10);
+}
+
+:root[data-theme="wabi-sabi-clay"] .nav-item:hover {
+  background: rgba(180, 140, 110, 0.10);
+}
+:root[data-theme="wabi-sabi-clay"] .nav-item.active {
+  background: rgba(212, 163, 115, 0.12);
+  border-left: 4px solid var(--accent-yellow);
+  color: #4a3420;
+}
+
+:root[data-theme="wabi-sabi-clay"] .input {
+  background: #fcfaf7;
+  border: 1px solid rgba(140, 110, 85, 0.20);
+  color: #3a2e28;
+}
+:root[data-theme="wabi-sabi-clay"] .input:focus {
+  border-color: var(--accent-yellow);
+  box-shadow: 0 0 0 3px rgba(212, 163, 115, 0.18);
+  outline: none;
+}
+
+:root[data-theme="wabi-sabi-clay"] .btn-primary {
+  background: #bc8f6c;
+  border: 1px solid #a67c5a;
+  box-shadow: 2px 3px 6px rgba(100, 70, 40, 0.10);
+  color: #fcfaf7;
+}
+:root[data-theme="wabi-sabi-clay"] .btn-primary:hover:not(:disabled) {
+  background: #c9a07e;
+  box-shadow: 2px 4px 8px rgba(100, 70, 40, 0.15);
+}
+:root[data-theme="wabi-sabi-clay"] .btn-ghost {
+  background: transparent;
+  border: 1px solid rgba(140, 110, 85, 0.18);
+  color: #5e4e45;
+}
+:root[data-theme="wabi-sabi-clay"] .btn-ghost:hover:not(:disabled) {
+  background: rgba(180, 140, 110, 0.08);
+}
+:root[data-theme="wabi-sabi-clay"] .btn-blue {
+  background: #6b7b8e;
+  border: 1px solid #5a6879;
+  color: #fcfaf7;
+  box-shadow: 2px 3px 6px rgba(60, 70, 80, 0.12);
+}
+
+:root[data-theme="wabi-sabi-clay"] thead th {
+  background: #dfd5c9;
+  color: #5e4e45;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 0.8rem;
+}
+:root[data-theme="wabi-sabi-clay"] tbody tr:hover {
+  background: rgba(180, 140, 110, 0.07);
+}
+
+:root[data-theme="wabi-sabi-clay"] .badge-closed  { background: rgba(127, 145, 114, 0.16); color: #5a6e4a; }
+:root[data-theme="wabi-sabi-clay"] .badge-partial { background: rgba(212, 163, 115, 0.16); color: #9a6e42; }
+:root[data-theme="wabi-sabi-clay"] .badge-open    { background: rgba(188, 108, 37, 0.14); color: #9a551e; }
+
+:root[data-theme="wabi-sabi-clay"] .pill-done-on {
+  background: rgba(127, 145, 114, 0.16);
+  border: 1px solid var(--accent-green);
+  color: #4a6040;
+}
+:root[data-theme="wabi-sabi-clay"] .pill-paid-on {
+  background: rgba(107, 123, 142, 0.16);
+  border: 1px solid var(--accent-blue);
+  color: #4a5a6a;
+}
+:root[data-theme="wabi-sabi-clay"] .pill-done-off,
+:root[data-theme="wabi-sabi-clay"] .pill-paid-off {
+  border: 1px solid rgba(140, 110, 85, 0.15);
+  color: #8b7a6e;
+}
+
+:root[data-theme="wabi-sabi-clay"] .logo span {
+  color: #bc6c25;
+  text-shadow: none;
+}
+
+:root[data-theme="wabi-sabi-clay"] .theme-dot.active {
+  border-color: var(--accent-yellow) !important;
+  box-shadow: 0 0 0 2px rgba(212, 163, 115, 0.3);
+}
+
+:root[data-theme="wabi-sabi-clay"] .toast {
+  background: #4a3f38;
+  border: 1px solid rgba(200, 180, 160, 0.2);
+  color: #f0e6dc;
+}
+
+:root[data-theme="wabi-sabi-clay"] .modal {
+  background: #ede5db;
+  border: 1px solid rgba(120, 90, 70, 0.15);
+}
+:root[data-theme="wabi-sabi-clay"] .modal-header {
+  background: #e2d8cc;
+  border-bottom: 1px solid rgba(120, 90, 70, 0.10);
+}
+
+:root[data-theme="wabi-sabi-clay"] ::-webkit-scrollbar-thumb {
+  background: #c4b4a4;
+  border-radius: 8px;
+}
+
+:root[data-theme="wabi-sabi-clay"] .grand-total {
+  background: rgba(212, 163, 115, 0.08);
+  border-top: 1px solid rgba(140, 110, 85, 0.15);
+}
