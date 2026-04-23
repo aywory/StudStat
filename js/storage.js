@@ -138,6 +138,7 @@ const Storage = (() => {
   // Fallback: классический <input type="file">
   // Внимание: без FileSystemFileHandle автосохранение не работает —
   // данные будут только в sessionStorage до явного "Сохранить"
+  // Заменяем _openViaInput:
   function _openViaInput() {
     return new Promise(resolve => {
       const input = document.createElement('input');
@@ -149,9 +150,26 @@ const Storage = (() => {
         try {
           const text = await file.text();
           _data = _migrate(JSON.parse(text));
-          _fh = null; // нет handle — автосохранение в sessionStorage
+
+          // Пробуем получить handle через showSaveFilePicker для того же файла
+          if ('showSaveFilePicker' in window) {
+            try {
+              const h = await window.showSaveFilePicker({
+                suggestedName: file.name,
+                types: [{ description: 'Uchet JSON', accept: { 'application/json': ['.json'] } }]
+              });
+              _fh = h;
+              await _writeHandle(h, _data);
+              await _idbPut(h);
+            } catch (e) {
+              // Если пользователь отказался - handle не будет, используем sessionStorage
+              console.warn('[Storage] Cannot get write handle, using sessionStorage backup');
+              _fh = null;
+            }
+          }
+
           localStorage.setItem(LS_NAME, file.name);
-          resolve({ ok: true, noApi: true });
+          resolve({ ok: true, noApi: !_fh });
         } catch (e) {
           resolve({ ok: false, error: e.message });
         }
@@ -200,32 +218,11 @@ const Storage = (() => {
   async function _flush() {
     if (!_dirty || !_data) return;
     _data.meta.updatedAt = new Date().toISOString();
-
     if (_fh) {
-      try {
-        await _writeHandle(_fh, _data);
-      } catch (e) {
-        console.error('[Storage] write failed', e);
-        return;
-      }
+      try { await _writeHandle(_fh, _data); } catch (e) { console.error('[Storage] write failed', e); return; }
     } else {
-      // Фолбек: сохраняем и в sessionStorage, и предлагаем скачать
-      try {
-        sessionStorage.setItem('uchet_bak', JSON.stringify(_data));
-      } catch (_) { }
-
-      // Автоматическое скачивание файла
-      const blob = new Blob([JSON.stringify(_data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = localStorage.getItem(LS_NAME) || 'uchet.json';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      try { sessionStorage.setItem('uchet_bak', JSON.stringify(_data)); } catch (_) { }
     }
-
     _dirty = false;
   }
 
