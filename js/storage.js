@@ -200,12 +200,32 @@ const Storage = (() => {
   async function _flush() {
     if (!_dirty || !_data) return;
     _data.meta.updatedAt = new Date().toISOString();
+
     if (_fh) {
-      try { await _writeHandle(_fh, _data); } catch (e) { console.error('[Storage] write failed', e); return; }
+      try {
+        await _writeHandle(_fh, _data);
+      } catch (e) {
+        console.error('[Storage] write failed', e);
+        return;
+      }
     } else {
-      // fallback: sessionStorage
-      try { sessionStorage.setItem('uchet_bak', JSON.stringify(_data)); } catch (_) { }
+      // Фолбек: сохраняем и в sessionStorage, и предлагаем скачать
+      try {
+        sessionStorage.setItem('uchet_bak', JSON.stringify(_data));
+      } catch (_) { }
+
+      // Автоматическое скачивание файла
+      const blob = new Blob([JSON.stringify(_data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = localStorage.getItem(LS_NAME) || 'uchet.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     }
+
     _dirty = false;
   }
 
