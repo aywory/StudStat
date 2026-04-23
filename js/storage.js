@@ -158,6 +158,28 @@ const Storage = (() => {
         try {
           const text = await file.text();
           _data = _migrate(JSON.parse(text));
+
+          // Пробуем получить handle на запись ОДИН РАЗ
+          if ('showSaveFilePicker' in window) {
+            try {
+              // Предлагаем сохранить в тот же файл (пользователь должен подтвердить ОДИН раз)
+              const h = await window.showSaveFilePicker({
+                suggestedName: file.name,
+                types: [{ description: 'Uchet JSON', accept: { 'application/json': ['.json'] } }]
+              });
+              _fh = h;
+              await _writeHandle(h, _data); // сохраняем текущие данные
+              await _idbPut(h);
+              localStorage.setItem(LS_NAME, file.name);
+              resolve({ ok: true });
+              return;
+            } catch (e) {
+              // Пользователь отказался от showSaveFilePicker
+              console.warn('[Storage] User declined save permission, using sessionStorage');
+            }
+          }
+
+          // Если API нет или пользователь отказался
           _fh = null;
           localStorage.setItem(LS_NAME, file.name);
           resolve({ ok: true, noApi: true });
@@ -248,17 +270,8 @@ const Storage = (() => {
     if (_fh) {
       try { await _writeHandle(_fh, _data); } catch (e) { console.error('[Storage] write failed', e); return; }
     } else {
-      // Сохраняем в sessionStorage и скачиваем файл (без проводника)
+      // Только sessionStorage, без скачивания
       try { sessionStorage.setItem('uchet_bak', JSON.stringify(_data)); } catch (_) { }
-
-      const fname = localStorage.getItem(LS_NAME) || DEFAULT_FNAME;
-      const blob = new Blob([JSON.stringify(_data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = fname;
-      a.click();
-      setTimeout(() => { URL.revokeObjectURL(url); }, 100);
     }
     _dirty = false;
   }
