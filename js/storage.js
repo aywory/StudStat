@@ -86,17 +86,25 @@ const Storage = (() => {
    *  { ok:false }                 – nothing stored
    */
   async function tryAutoOpen() {
-    const handle = await _idbGet();
-    if (!handle) return { ok: false };
-    const name = localStorage.getItem(LS_NAME) || handle.name;
+    const stored = await _idbGet();
+    if (!stored) return { ok: false };
+
+    // Если это наш кастомный handle (сохраненный из _openViaInput)
+    if (stored._isFileHandle) {
+      const name = stored.name || localStorage.getItem(LS_NAME);
+      return { ok: false, needsGesture: true, handle: null, name, isFileFallback: true };
+    }
+
+    // Стандартный FileSystemFileHandle
+    const name = localStorage.getItem(LS_NAME) || stored.name;
     try {
-      const perm = await handle.queryPermission({ mode: 'readwrite' });
+      const perm = await stored.queryPermission({ mode: 'readwrite' });
       if (perm === 'granted') {
-        _data = _migrate(await _readHandle(handle));
-        _fh = handle;
+        _data = _migrate(await _readHandle(stored));
+        _fh = stored;
         return { ok: true };
       }
-      return { ok: false, needsGesture: true, handle, name };
+      return { ok: false, needsGesture: true, handle: stored, name };
     } catch (_) {
       return { ok: false };
     }
@@ -150,26 +158,9 @@ const Storage = (() => {
         try {
           const text = await file.text();
           _data = _migrate(JSON.parse(text));
-
-          // Пробуем получить handle через showSaveFilePicker для того же файла
-          if ('showSaveFilePicker' in window) {
-            try {
-              const h = await window.showSaveFilePicker({
-                suggestedName: file.name,
-                types: [{ description: 'Uchet JSON', accept: { 'application/json': ['.json'] } }]
-              });
-              _fh = h;
-              await _writeHandle(h, _data);
-              await _idbPut(h);
-            } catch (e) {
-              // Если пользователь отказался - handle не будет, используем sessionStorage
-              console.warn('[Storage] Cannot get write handle, using sessionStorage backup');
-              _fh = null;
-            }
-          }
-
+          _fh = null;
           localStorage.setItem(LS_NAME, file.name);
-          resolve({ ok: true, noApi: !_fh });
+          resolve({ ok: true, noApi: true });
         } catch (e) {
           resolve({ ok: false, error: e.message });
         }
@@ -177,6 +168,42 @@ const Storage = (() => {
       input.oncancel = () => resolve({ ok: false, aborted: true });
       input.click();
     });
+  }
+
+  // Создает объект, совместимый с FileSystemFileHandle, из File
+  function _createHandleFromFile(file) {
+    return {
+      name: file.name,
+      kind: 'file',
+      async getFile() {
+        return file;
+      },
+      async createWritable() {
+        // Используем временный файл и скачивание
+        let _writtenData = null;
+        const self = this;
+        return {
+          async write(data) {
+            _writtenData = data;
+          },
+          async close() {
+            if (_writtenData) {
+              const blob = new Blob([_writtenData], { type: 'application/json' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = self.name;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+            }
+          }
+        };
+      },
+      async queryPermission() { return 'granted'; },
+      async requestPermission() { return 'granted'; }
+    };
   }
 
   async function createFile() {
@@ -221,7 +248,17 @@ const Storage = (() => {
     if (_fh) {
       try { await _writeHandle(_fh, _data); } catch (e) { console.error('[Storage] write failed', e); return; }
     } else {
+      // Сохраняем в sessionStorage и скачиваем файл (без проводника)
       try { sessionStorage.setItem('uchet_bak', JSON.stringify(_data)); } catch (_) { }
+
+      const fname = localStorage.getItem(LS_NAME) || DEFAULT_FNAME;
+      const blob = new Blob([JSON.stringify(_data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fname;
+      a.click();
+      setTimeout(() => { URL.revokeObjectURL(url); }, 100);
     }
     _dirty = false;
   }

@@ -74,27 +74,52 @@ const App = (() => {
   }
 
   /* ══ File prompts ══════════════════════════════ */
-  function _showReVerifyPrompt({ handle, name }) {
-    const fp = document.getElementById('file-prompt');
-    fp.style.display = 'flex';
+  function _showReVerifyPrompt({ handle, name, isFileFallback }) {
+  const fp = document.getElementById('file-prompt');
+  fp.style.display = 'flex';
+  
+  if (isFileFallback) {
+    // Для fallback просто показываем кнопку открыть файл заново
     fp.innerHTML = `
       <div style="font-size:3rem">📒</div>
       <h1>Учёт работ</h1>
       <p>Последний файл: <strong>${_esc(name)}</strong><br>
-         Браузер требует подтверждения доступа — нужен один клик.</p>
+         Требуется повторное открытие файла.</p>
       <div class="file-prompt-actions">
-        <button class="btn btn-primary btn-lg" id="fp-rv">🔓 Открыть «${_esc(name)}»</button>
-        <button class="btn btn-ghost   btn-lg" id="fp-other">Выбрать другой файл</button>
+        <button class="btn btn-primary btn-lg" id="fp-open-again">📂 Открыть «${_esc(name)}»</button>
+        <button class="btn btn-ghost btn-lg" id="fp-other">Выбрать другой файл</button>
       </div>`;
-    document.getElementById('fp-rv').addEventListener('click', async () => {
-      const r = await Storage.reVerify(handle);
-      if (r.ok) { fp.style.display = 'none'; _boot(); }
-      else UI.toast('Нет доступа к файлу', 'error');
+    document.getElementById('fp-open-again').addEventListener('click', async () => {
+      fp.style.display = 'none';
+      const r = await Storage.openFile();
+      if (r.ok) { _boot(); }
+      else if (!r.aborted) UI.toast('Ошибка: ' + (r.error || ''), 'error');
     });
     document.getElementById('fp-other').addEventListener('click', async () => {
       await Storage.forgetFile(); _showFirstRunPrompt();
     });
+    return;
   }
+  
+  // Стандартный случай с FileSystemFileHandle
+  fp.innerHTML = `
+    <div style="font-size:3rem">📒</div>
+    <h1>Учёт работ</h1>
+    <p>Последний файл: <strong>${_esc(name)}</strong><br>
+       Браузер требует подтверждения доступа — нужен один клик.</p>
+    <div class="file-prompt-actions">
+      <button class="btn btn-primary btn-lg" id="fp-rv">🔓 Открыть «${_esc(name)}»</button>
+      <button class="btn btn-ghost btn-lg" id="fp-other">Выбрать другой файл</button>
+    </div>`;
+  document.getElementById('fp-rv').addEventListener('click', async () => {
+    const r = await Storage.reVerify(handle);
+    if (r.ok) { fp.style.display = 'none'; _boot(); }
+    else UI.toast('Нет доступа к файлу', 'error');
+  });
+  document.getElementById('fp-other').addEventListener('click', async () => {
+    await Storage.forgetFile(); _showFirstRunPrompt();
+  });
+}
 
   function _showFirstRunPrompt() {
     const fp = document.getElementById('file-prompt');
