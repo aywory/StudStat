@@ -5,6 +5,30 @@
  */
 
 const UI = (() => {
+  const icons = {
+    "overview": "M3 3h7v7H3z M14 3h7v4h-7z M14 11h7v10h-7z M3 14h7v7H3z",
+    "semesters": "M5 5h14v16H5z M8 3v4 M16 3v4 M5 10h14 M9 14h6",
+    "records": "M4 5h16v14H4z M4 10h16 M10 10v9 M4 14.5h16",
+    "analytics": "M4 4v16h16 M8 15l4-5 4 2 4-6",
+    "panel": "M3 5h18v14H3z M9 5v14 M13 10l-2 2 2 2",
+    "expand": "M3 5h18v14H3z M9 5v14 M12 10l2 2-2 2",
+    "save": "M5 4h12l3 3v13H4V4z M8 4v5h8V4 M8 20v-7h8v7",
+    "folder": "M3 7V5h6l2 2h9v3 M3 7v12h16l3-9H7l-4 9",
+    "theme": "M12 3a9 9 0 1 0 0 18h1a1.5 1.5 0 0 0 1-2.6 1.5 1.5 0 0 1 1-2.6h2a4 4 0 0 0 4-4A9 9 0 0 0 12 3z M7.5 11h.01 M10 7.5h.01 M14 7.5h.01 M17 11h.01",
+    "search": "M16 10.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z M14.5 14.5l5 5",
+    "copy": "M8 8h12v12H8z M16 4H4v12",
+    "trash": "M4 7h16 M9 7V4h6v3 M6 7l1 13h10l1-13 M10 10v6 M14 10v6",
+    "close": "M6 6l12 12 M18 6 6 18",
+    "plus": "M12 5v14 M5 12h14",
+    "today": "M12 3v3 M12 18v3 M3 12h3 M18 12h3 M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0z",
+    "sort": "M8 9l4-4 4 4 M8 15l4 4 4-4",
+    "up": "M8 14l4-4 4 4",
+    "down": "M8 10l4 4 4-4"
+  };
+  function Icon(name) {
+    return `<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="${icons[name]}"/></svg>`;
+  }
+
 
   /* ─── Button ─────────────────────────────── */
   /**
@@ -23,7 +47,10 @@ const UI = (() => {
     btn.className = ['btn', `btn-${variant}`, size ? `btn-${size}` : '', !text && icon ? 'btn-icon' : '', className].filter(Boolean).join(' ');
     if (icon)  btn.insertAdjacentHTML('beforeend', `<span class="btn-icon-inner">${icon}</span>`);
     if (text)  btn.insertAdjacentText('beforeend', text);
-    if (title) btn.title = title;
+    if (title) {
+      btn.title = title;
+      if (!text) btn.setAttribute('aria-label', title);
+    }
     btn.disabled = disabled;
     if (onClick) btn.addEventListener('click', onClick);
     return btn;
@@ -176,15 +203,7 @@ const UI = (() => {
     return [1,'…',current-1,current,current+1,'…',total];
   }
 
-  /* ─── Sort header ────────────────────────── */
-  function setSortHeader(th, field, currentSort) {
-    th.classList.remove('sorted-asc', 'sorted-desc');
-    if (currentSort.field === field) {
-      th.classList.add(currentSort.dir === 'asc' ? 'sorted-asc' : 'sorted-desc');
-    }
-  }
-
-  return { Button, Input, Select, FormGroup, toast, openModal, closeModal, confirmDialog, statusBadge, renderPagination, setSortHeader };
+  return { Icon, Button, Input, Select, FormGroup, toast, openModal, closeModal, confirmDialog, statusBadge, renderPagination };
 })();
 
 window.UI = UI;

@@ -35,7 +35,7 @@ const AnalyticsView = (() => {
       </div>`);
 
     if (!_records.length) {
-      wrap.insertAdjacentHTML('beforeend','<div class="empty-state"><div class="empty-icon">📊</div><p>Нет данных для анализа</p></div>');
+      wrap.insertAdjacentHTML('beforeend', `<div class="empty-state"><div class="empty-icon">${UI.Icon('analytics')}</div><p>Нет данных для анализа</p></div>`);
       return wrap;
     }
 
@@ -386,7 +386,7 @@ const AnalyticsView = (() => {
   function _renderCompare(container) {
     const sems = Storage.getSemesters();
     if (sems.length < 2) {
-      container.insertAdjacentHTML('beforeend','<div class="empty-state"><div class="empty-icon">📊</div><p>Нужно минимум 2 семестра для сравнения</p></div>');
+      container.insertAdjacentHTML('beforeend', `<div class="empty-state"><div class="empty-icon">${UI.Icon('analytics')}</div><p>Нужно минимум 2 семестра для сравнения</p></div>`);
       return;
     }
 

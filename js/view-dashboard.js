@@ -24,7 +24,7 @@ const DashboardView = (() => {
       </div>`);
 
     if (!allRecs.length) {
-      wrap.insertAdjacentHTML('beforeend','<div class="empty-state" style="margin-top:3rem"><div class="empty-icon">🗂</div><p>Создайте семестр и добавьте первые записи</p></div>');
+      wrap.insertAdjacentHTML('beforeend', `<div class="empty-state" style="margin-top:3rem"><div class="empty-icon">${UI.Icon('semesters')}</div><p>Создайте семестр и добавьте первые записи</p></div>`);
       return wrap;
     }
 

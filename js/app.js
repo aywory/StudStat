@@ -24,7 +24,7 @@ const App = (() => {
     _applyTheme(localStorage.getItem('uchet_theme') || 'dark');
     _themes = _discoverThemes();
     _buildModalShell();
-    _buildHeader();
+    _buildControls();
 
     const auto = await Storage.tryAutoOpen();
     if (auto.ok) { _boot(); return; }
@@ -78,7 +78,7 @@ const App = (() => {
     const fp = document.getElementById('file-prompt');
     fp.style.display = 'flex';
     fp.innerHTML = `
-      <div style="font-size:3rem">📒</div>
+      <span class="brand-mark prompt-mark" aria-hidden="true"></span>
       <h1>Учёт работ</h1>
       <p>Последний файл: <strong>${_esc(name)}</strong><br>
          Браузер требует подтверждения доступа — нужен один клик.</p>
@@ -100,12 +100,12 @@ const App = (() => {
     const fp = document.getElementById('file-prompt');
     fp.style.display = 'flex';
     fp.innerHTML = `
-      <div style="font-size:3rem">📒</div>
+      <span class="brand-mark prompt-mark" aria-hidden="true"></span>
       <h1>Учёт работ</h1>
       <p>Все данные хранятся локально в JSON-файле на вашем компьютере.<br>
          Выберите существующий файл или создайте новый.</p>
       <div class="file-prompt-actions">
-        <button class="btn btn-primary btn-lg" id="fp-open">📂 Открыть файл</button>
+        <button class="btn btn-primary btn-lg" id="fp-open">${UI.Icon('folder')} Открыть файл</button>
         <button class="btn btn-ghost   btn-lg" id="fp-create">✨ Создать новый</button>
       </div>
       <p style="margin-top:1rem;font-size:.72rem;opacity:.4">
@@ -145,57 +145,88 @@ const App = (() => {
   }
 
   /* ══ Header ════════════════════════════════════ */
-  function _buildHeader() {
-    const h = document.getElementById('header');
-    h.innerHTML = '';
+  function _buildControls() {
+    const controls = document.getElementById('app-controls');
+    const nav = document.getElementById('navigation');
+    const menu = UI.Button({ icon: UI.Icon('panel'), onClick: () => setMenuHidden(!nav.hidden) });
+    menu.setAttribute('aria-controls', nav.id);
 
-    const logo = document.createElement('div');
-    logo.className = 'logo';
-    logo.innerHTML = '📒 УЧ<span>ЁТ</span>';
-    h.appendChild(logo);
+    function setMenuHidden(hidden) {
+      nav.hidden = hidden;
+      document.getElementById('app').classList.toggle('menu-hidden', hidden);
+      menu.title = hidden ? 'Показать меню' : 'Скрыть меню';
+      menu.setAttribute('aria-label', menu.title);
+      menu.setAttribute('aria-expanded', String(!hidden));
+      menu.querySelector('.btn-icon-inner').innerHTML = UI.Icon(hidden ? 'expand' : 'panel');
+      localStorage.setItem('uchet_menu_hidden', String(hidden));
+    }
 
-    const right = document.createElement('div');
-    right.className = 'header-right';
-    right.appendChild(_makeThemePicker());
-    right.appendChild(UI.Button({
-      text: '💾', variant: 'ghost', size: 'sm', title: 'Сохранить немедленно',
-      onClick: async () => { await Storage.saveNow(); UI.toast('Сохранено ✓'); }
-    }));
-    right.appendChild(UI.Button({
-      text: '📂', variant: 'ghost', size: 'sm', title: 'Сменить файл данных',
-      onClick: async () => { await Storage.forgetFile(); location.reload(); }
-    }));
-    h.appendChild(right);
+    setMenuHidden(localStorage.getItem('uchet_menu_hidden') === 'true');
+    controls.append(
+      menu,
+      _makeThemePicker(),
+      UI.Button({
+        icon: UI.Icon('save'), title: 'Сохранить немедленно',
+        onClick: async () => { await Storage.saveNow(); UI.toast('Сохранено'); }
+      }),
+      UI.Button({
+        icon: UI.Icon('folder'), title: 'Сменить файл данных',
+        onClick: async () => { await Storage.forgetFile(); location.reload(); }
+      })
+    );
   }
 
-  /* ══ Theme picker ══════════════════════════════ */
   function _makeThemePicker() {
     const wrap = document.createElement('div');
     wrap.className = 'theme-picker';
     wrap.style.position = 'relative';
-
-    /* First two themes as dots, rest in "···" dropdown */
-    const base = _themes.slice(0, 2);
-    const extra = _themes.slice(2);
-
-    base.forEach(t => {
-      const dot = document.createElement('div');
-      dot.className = 'theme-dot';
-      _applySwatchStyle(dot, t.swatch);
-      dot.title = t.label;
-      dot.addEventListener('click', () => { _applyTheme(t.id); _refreshPicker(wrap); });
-      wrap.appendChild(dot);
+    const dropdown = document.createElement('div');
+    dropdown.className = 'theme-dropdown';
+    dropdown.id = 'theme-dropdown';
+    dropdown.hidden = true;
+    const trigger = UI.Button({
+      icon: UI.Icon('theme'), title: 'Темы оформления',
+      onClick: () => setOpen(dropdown.hidden)
     });
+    trigger.setAttribute('aria-controls', dropdown.id);
+    trigger.setAttribute('aria-expanded', 'false');
 
-    /* "···" pill — always rendered (even if no extras, shows all in dropdown) */
-    const pill = document.createElement('div');
-    pill.className = 'theme-more-btn';
-    pill.textContent = '···';
-    pill.title = 'Все темы';
-    pill.addEventListener('click', e => { e.stopPropagation(); _toggleDropdown(pill, wrap); });
-    wrap.appendChild(pill);
+    function setOpen(open) {
+      dropdown.hidden = !open;
+      trigger.setAttribute('aria-expanded', String(open));
+      if (open) {
+        dropdown.querySelectorAll('button').forEach(item => {
+          item.classList.toggle('active', item.dataset.theme === document.documentElement.dataset.theme);
+        });
+      }
+    }
 
-    _refreshPicker(wrap);
+    _themes.forEach(theme => {
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'theme-dropdown-item';
+      item.dataset.theme = theme.id;
+      const swatch = document.createElement('span');
+      swatch.className = 'theme-dropdown-swatch';
+      _applySwatchStyle(swatch, theme.swatch);
+      item.append(swatch, theme.label);
+      item.addEventListener('click', () => {
+        _applyTheme(theme.id);
+        setOpen(false);
+        trigger.focus();
+      });
+      dropdown.appendChild(item);
+    });
+    document.addEventListener('click', e => {
+      if (!wrap.contains(e.target)) setOpen(false);
+    });
+    wrap.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && !dropdown.hidden) {
+        setOpen(false);
+        trigger.focus();
+      }
+    });
+    wrap.append(trigger, dropdown);
     return wrap;
   }
 
@@ -219,42 +250,6 @@ const App = (() => {
     el.style.border = `2px solid ${border}`;
   }
 
-  function _refreshPicker(wrap) {
-    const cur = document.documentElement.getAttribute('data-theme');
-    const dots = [...wrap.querySelectorAll('.theme-dot')];
-    const base = _themes.slice(0, 2);
-    dots.forEach((d, i) => d.classList.toggle('active', base[i]?.id === cur));
-    const pill = wrap.querySelector('.theme-more-btn');
-    if (pill) pill.classList.toggle('active', _themes.slice(2).some(t => t.id === cur));
-  }
-
-  function _toggleDropdown(pill, wrap) {
-    const ex = wrap.querySelector('.theme-dropdown');
-    if (ex) { ex.remove(); return; }
-
-    const cur = document.documentElement.getAttribute('data-theme');
-    const dd = document.createElement('div');
-    dd.className = 'theme-dropdown';
-
-    _themes.forEach(t => {
-      const item = document.createElement('div');
-      item.className = 'theme-dropdown-item' + (t.id === cur ? ' active' : '');
-      const sw = document.createElement('div');
-      sw.className = 'theme-dropdown-swatch';
-      _applySwatchStyle(sw, t.swatch);
-      item.appendChild(sw);
-      item.appendChild(document.createTextNode(t.label));
-      item.addEventListener('click', () => {
-        _applyTheme(t.id); _refreshPicker(wrap); dd.remove();
-      });
-      dd.appendChild(item);
-    });
-
-    wrap.appendChild(dd);
-    const close = e => { if (!wrap.contains(e.target)) { dd.remove(); document.removeEventListener('click', close); } };
-    setTimeout(() => document.addEventListener('click', close), 0);
-  }
-
   function _applyTheme(id) {
     document.documentElement.setAttribute('data-theme', id);
     localStorage.setItem('uchet_theme', id);
@@ -262,25 +257,26 @@ const App = (() => {
 
   /* ══ Sidebar ═══════════════════════════════════ */
   function _buildSidebar() {
-    const sb = document.getElementById('sidebar');
+    const sb = document.getElementById('navigation');
     sb.innerHTML = '';
     _navSection(sb, 'Главная');
-    sb.appendChild(_navItem('🏠', 'Обзор', 'dashboard', null));
-    sb.appendChild(_navItem('⚙', 'Семестры', 'semesters', null));
+    sb.appendChild(_navItem('overview', 'Обзор', 'dashboard', null));
+    sb.appendChild(_navItem('semesters', 'Семестры', 'semesters', null));
     const sems = Storage.getSemesters();
     if (sems.length) {
       _divider(sb); _navSection(sb, 'Учёт');
-      sems.forEach(s => sb.appendChild(_navItem('📋', s.label, 'records', s.id)));
+      sems.forEach(s => sb.appendChild(_navItem('records', s.label, 'records', s.id)));
       _divider(sb); _navSection(sb, 'Аналитика');
-      sems.forEach(s => sb.appendChild(_navItem('📊', s.label, 'analytics', s.id)));
+      sems.forEach(s => sb.appendChild(_navItem('analytics', s.label, 'analytics', s.id)));
     }
   }
   function _navSection(sb, t) { const d = document.createElement('div'); d.className = 'nav-section'; d.textContent = t; sb.appendChild(d); }
   function _divider(sb) { const d = document.createElement('div'); d.className = 'sidebar-divider'; sb.appendChild(d); }
   function _navItem(icon, text, view, semId) {
-    const el = document.createElement('div');
+    const el = document.createElement('button');
+    el.type = 'button';
     el.className = 'nav-item' + (_view === view && _semId === semId ? ' active' : '');
-    el.innerHTML = `<span class="nav-icon">${icon}</span><span>${_esc(text)}</span>`;
+    el.innerHTML = `<span class="nav-icon">${UI.Icon(icon)}</span><span>${_esc(text)}</span>`;
     el.addEventListener('click', () => navigate(view, semId));
     return el;
   }
@@ -294,7 +290,7 @@ const App = (() => {
     wrap.appendChild(ph);
     const sems = Storage.getSemesters();
     if (!sems.length) {
-      wrap.insertAdjacentHTML('beforeend', '<div class="empty-state"><div class="empty-icon">🗂</div><p>Нет семестров. Создайте первый.</p></div>');
+      wrap.insertAdjacentHTML('beforeend', `<div class="empty-state"><div class="empty-icon">${UI.Icon('semesters')}</div><p>Нет семестров. Создайте первый.</p></div>`);
     } else {
       const grid = document.createElement('div'); grid.className = 'grid-3 mt-md';
       sems.forEach(sem => {
@@ -306,7 +302,7 @@ const App = (() => {
         const acts = document.createElement('div'); acts.className = 'flex gap-sm';
         acts.appendChild(UI.Button({ text: 'Учёт', variant: 'blue', size: 'sm', onClick: () => navigate('records', sem.id) }));
         acts.appendChild(UI.Button({ text: 'Аналитика', variant: 'ghost', size: 'sm', onClick: () => navigate('analytics', sem.id) }));
-        acts.appendChild(UI.Button({ text: '✕', variant: 'danger', size: 'sm', onClick: () => _delSem(sem.id) }));
+        acts.appendChild(UI.Button({ icon: UI.Icon('trash'), title: 'Удалить семестр', variant: 'danger', size: 'sm', onClick: () => _delSem(sem.id) }));
         card.appendChild(acts); grid.appendChild(card);
       });
       wrap.appendChild(grid);
@@ -344,7 +340,7 @@ const App = (() => {
   function _buildModalShell() {
     if (document.getElementById('modal-backdrop')) return;
     const bd = document.createElement('div'); bd.id = 'modal-backdrop';
-    bd.innerHTML = `<div class="modal"><div class="modal-header"><h3 class="modal-title"></h3><button class="btn btn-ghost btn-sm btn-icon" id="modal-close">✕</button></div><div class="modal-body"></div><div class="modal-footer"></div></div>`;
+    bd.innerHTML = `<div class="modal"><div class="modal-header"><h3 class="modal-title"></h3><button class="btn btn-ghost btn-sm btn-icon" id="modal-close" aria-label="Закрыть">${UI.Icon('close')}</button></div><div class="modal-body"></div><div class="modal-footer"></div></div>`;
     bd.addEventListener('click', e => { if (e.target === bd) UI.closeModal(); });
     bd.querySelector('#modal-close').addEventListener('click', () => UI.closeModal());
     document.body.appendChild(bd);

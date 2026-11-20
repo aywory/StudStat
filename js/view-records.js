@@ -1,12 +1,4 @@
-/**
- * view-records.js — Inline-editing table
- * Улучшения:
- * • Tab/Shift+Tab — переход между ячейками
- * • Enter в ячейке — переход на следующую строку ту же колонку
- * • Дублировать строку (кнопка появляется при hover)
- * • Итоговая строка внизу таблицы
- * • Быстрая кнопка "отметить сегодня" прямо в колонках дат
- */
+// Semester records and inline editing.
 
 const RecordsView = (() => {
   let _semId = null;
@@ -35,18 +27,18 @@ const RecordsView = (() => {
   /* ══ Shell ══════════════════════════════════ */
   function _shell() {
     const w = document.createElement('div');
+    w.className = 'records-page';
     const sem = Storage.getSemesters().find(s => s.id === _semId);
     const ph = document.createElement('div'); ph.className = 'page-header';
-    ph.innerHTML = `<div class="page-header-left"><h2>${_esc(sem?.label ?? 'Учёт')}</h2><p class="mt-sm">Нажмите ячейку для редактирования · Tab — следующая ячейка</p></div>`;
-
-    const acts = document.createElement('div'); acts.className = 'flex gap-sm';
-    acts.appendChild(UI.Button({ text: '+ Добавить строку', variant: 'primary', onClick: _addRow }));
-    ph.appendChild(acts); w.appendChild(ph);
+    const title = document.createElement('h2');
+    title.textContent = sem ? `Семестр «${sem.label}»` : 'Семестр';
+    ph.appendChild(title);
+    w.appendChild(ph);
 
     /* Filter bar */
     const fb = document.createElement('div'); fb.className = 'filter-bar';
     const sw = document.createElement('div'); sw.className = 'search-wrap';
-    sw.innerHTML = '<span class="search-icon">⌕</span>';
+    sw.innerHTML = '<span class="search-icon">' + UI.Icon('search') + '</span>';
     const si = UI.Input({ placeholder: 'Поиск…' }); si.id = 'rs';
     si.addEventListener('input', () => { _page = 1; _filter(); }); sw.appendChild(si); fb.appendChild(sw);
 
@@ -57,14 +49,14 @@ const RecordsView = (() => {
     const stSel = UI.Select({ options: ['все', 'закрыто', 'не закрыто', 'не оплачено'] }); stSel.id = 'rst'; stSel.style.width = '130px';
     stSel.addEventListener('change', () => { _page = 1; _filter(); }); fb.appendChild(stSel);
 
-    w.appendChild(fb);
-    const tw = document.createElement('div'); tw.className = 'table-wrapper'; tw.id = 'rtw'; w.appendChild(tw);
+    const tw = document.createElement('div'); tw.className = 'records-scroll'; tw.id = 'rtw'; w.appendChild(tw);
     const pg = document.createElement('div'); pg.className = 'pagination'; pg.id = 'rpg'; w.appendChild(pg);
+    w.appendChild(fb);
     return w;
   }
 
   /* ══ Filter ══════════════════════════════════ */
-  function _filter() {
+  function _filter({ reveal } = {}) {
     const q = (document.getElementById('rs')?.value || '').toLowerCase();
     const sub = document.getElementById('rsub')?.value || 'все предметы';
     const cli = document.getElementById('rcli')?.value || 'все заказчики';
@@ -84,65 +76,139 @@ const RecordsView = (() => {
       if (_sort.f === 'price') { va = +va; vb = +vb; } else { va = String(va).toLowerCase(); vb = String(vb).toLowerCase(); }
       return _sort.d === 'asc' ? (va < vb ? -1 : va > vb ? 1 : 0) : (va > vb ? -1 : va < vb ? 1 : 0);
     });
+    if (reveal) {
+      const index = _filt.findIndex(rec => rec.id === reveal);
+      if (index === -1) {
+        document.getElementById('rs').value = '';
+        ['rsub', 'rcli', 'rst'].forEach(id => { document.getElementById(id).selectedIndex = 0; });
+        _filter({ reveal });
+        return;
+      }
+      _page = Math.floor(index / PER) + 1;
+    }
     _renderTable();
   }
 
   /* ══ Table render ════════════════════════════ */
   function _renderTable() {
-    const tw = document.getElementById('rtw'); if (!tw) return;
-    tw.innerHTML = '';
-    if (!_filt.length) {
-      tw.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><p>Нет записей.</p></div>';
-      document.getElementById('rpg').innerHTML = ''; return;
-    }
+    const viewport = document.getElementById('rtw');
+    if (!viewport) return;
+    _page = Math.min(_page, Math.max(1, Math.ceil(_filt.length / PER)));
+    const offset = (_page - 1) * PER;
+    const canvas = document.createElement('div');
+    canvas.className = 'records-canvas';
 
-    const slice = _filt.slice((_page - 1) * PER, _page * PER);
-    const off = (_page - 1) * PER;
-
-    const t = document.createElement('table');
-    t.innerHTML = `<thead><tr>
-      <th class="no-sort" style="width:2rem">#</th>
-      <th data-f="subject"  style="width:80px">Предмет</th>
-      <th data-f="taskNum"  style="width:70px">Задача</th>
-      <th data-f="client"   style="width:130px">Заказчик</th>
-      <th data-f="price"    style="width:90px;text-align:right">Цена</th>
-      <th data-f="doneDate" style="width:115px">Выполнено</th>
-      <th data-f="paidDate" style="width:115px">Оплачено</th>
-      <th class="no-sort"   style="width:120px">Статус</th>
-      <th data-f="notes">Заметки</th>
-      <th class="no-sort"   style="width:56px"></th>
+    const table = document.createElement('table');
+    table.className = 'records-table';
+    table.innerHTML = `<thead><tr>
+      <th scope="col" class="no-sort" style="width:3rem">#</th>
+      <th scope="col" data-f="subject" style="width:11%">Предмет</th>
+      <th scope="col" data-f="taskNum" style="width:9%">Задача</th>
+      <th scope="col" data-f="client" style="width:14%">Заказчик</th>
+      <th scope="col" data-f="price" class="td-num" style="width:9%">Цена</th>
+      <th scope="col" data-f="doneDate" style="width:13%">Выполнено</th>
+      <th scope="col" data-f="paidDate" style="width:13%">Оплачено</th>
+      <th scope="col" class="no-sort" style="width:15%">Статус</th>
+      <th scope="col" data-f="notes">Заметки</th>
+    </tr><tr class="records-totals">
+      <td colspan="4" data-total-count></td>
+      <td class="td-num" data-total-price></td>
+      <td colspan="2" class="text-right">Оплачено</td>
+      <td class="td-num" data-total-paid></td>
+      <td></td>
     </tr></thead>`;
-
-    t.querySelectorAll('thead th[data-f]').forEach(th => {
-      UI.setSortHeader(th, th.dataset.f, { field: _sort.f, dir: _sort.d });
-      th.addEventListener('click', () => {
-        _sort = _sort.f === th.dataset.f ? { f: _sort.f, d: _sort.d === 'asc' ? 'desc' : 'asc' } : { f: th.dataset.f, d: 'asc' };
-        _filter();
+    table.querySelectorAll('th[data-f]').forEach(th => {
+      const field = th.dataset.f;
+      const active = _sort.f === field;
+      const icon = active ? (_sort.d === 'asc' ? 'up' : 'down') : 'sort';
+      if (active) th.setAttribute('aria-sort', _sort.d === 'asc' ? 'ascending' : 'descending');
+      const button = UI.Button({
+        text: th.textContent, className: 'sort-button',
+        onClick: event => {
+          _sort = { f: field, d: active && _sort.d === 'asc' ? 'desc' : 'asc' };
+          _filter();
+          if (event.detail === 0) viewport.querySelector(`th[data-f="${field}"] button`).focus();
+        }
       });
+      button.insertAdjacentHTML('beforeend', UI.Icon(icon));
+      th.replaceChildren(button);
     });
 
-    const tb = document.createElement('tbody');
-    slice.forEach((rec, i) => tb.appendChild(_row(rec, off + i + 1)));
-
-    /* Totals row */
-    const totals = _filt.reduce((s, r) => { s.price += (r.price || 0); s.paid += (r.paidDate ? r.price || 0 : 0); return s; }, { price: 0, paid: 0 });
-    const tfRow = document.createElement('tr');
-    tfRow.style.cssText = 'background:var(--bg-thead);font-weight:700;font-size:.78rem';
-    tfRow.innerHTML = `
-      <td colspan="4" style="padding:.5rem .85rem;color:var(--text-muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.07em">
-        Итого: ${_filt.length} записей
-      </td>
-      <td class="td-num" style="padding:.5rem .85rem;color:var(--accent-green)">${totals.price} ₴</td>
-      <td colspan="2" style="padding:.5rem .85rem;color:var(--text-muted);font-size:.78rem;text-align:right">оплачено:</td>
-      <td class="td-num" style="padding:.5rem .85rem;color:var(--accent-blue)">${totals.paid} ₴</td>
-      <td colspan="2"></td>`;
-    tb.appendChild(tfRow);
-
-    t.appendChild(tb); tw.appendChild(t);
+    const body = table.createTBody();
+    const actions = document.createElement('div');
+    actions.className = 'record-actions-layer';
+    const actionPositions = [];
+    _filt.slice(offset, offset + PER).forEach((rec, index) => {
+      const row = _row(rec, offset + index + 1);
+      body.appendChild(row);
+      actionPositions.push(_addRowActions(actions, row, rec));
+    });
+    const firstCell = body.rows[0]?.cells[EDITABLE_COLS[0]];
+    if (firstCell) {
+      firstCell.tabIndex = 0;
+      firstCell.addEventListener('focus', () => firstCell.click());
+    }
+    const addRow = body.insertRow();
+    addRow.className = 'new-record-row';
+    const addCell = addRow.insertCell();
+    addCell.colSpan = table.rows[0].cells.length;
+    addCell.appendChild(UI.Button({
+      text: 'Новая строка', icon: UI.Icon('plus'), className: 'new-record-button', onClick: _addRow
+    }));
+    addCell.firstChild.addEventListener('keydown', event => {
+      const lastRecord = addRow.previousElementSibling;
+      if (event.key !== 'Tab' || !event.shiftKey || !lastRecord) return;
+      event.preventDefault();
+      lastRecord.cells[EDITABLE_COLS.at(-1)].click();
+    });
+    canvas.append(table, actions);
+    viewport.replaceChildren(canvas);
+    actionPositions.forEach(position => position());
+    _updateTotals();
     UI.renderPagination(document.getElementById('rpg'), {
       total: _filt.length, page: _page, perPage: PER,
-      onChange: p => { _page = p; _renderTable(); }
+      onChange: page => { _page = page; viewport.scrollTop = 0; _renderTable(); }
     });
+  }
+
+  function _updateTotals() {
+    const row = document.querySelector('#rtw .records-totals');
+    if (!row) return;
+    let price = 0;
+    let paid = 0;
+    _filt.forEach(rec => {
+      const amount = Number(rec.price) || 0;
+      price += amount;
+      if (rec.paidDate) paid += amount;
+    });
+    row.querySelector('[data-total-count]').textContent = `Итого · ${_filt.length}`;
+    row.querySelector('[data-total-price]').textContent = _formatPrice(price);
+    row.querySelector('[data-total-paid]').textContent = _formatPrice(paid);
+  }
+
+  function _addRowActions(layer, row, rec) {
+    const group = document.createElement('div');
+    group.className = 'record-actions';
+    group.append(
+      UI.Button({ icon: UI.Icon('copy'), title: 'Дублировать строку', onClick: () => _dupRow(rec) }),
+      UI.Button({ icon: UI.Icon('trash'), variant: 'danger', title: 'Удалить строку', onClick: () => _del(rec.id) })
+    );
+    layer.appendChild(group);
+
+    const position = () => {
+      const bounds = row.getBoundingClientRect();
+      group.style.top = `${bounds.top - layer.getBoundingClientRect().top}px`;
+      group.style.height = `${bounds.height}px`;
+    };
+    const show = () => { position(); group.classList.add('visible'); };
+    const hide = event => {
+      if (!row.contains(event.relatedTarget) && !group.contains(event.relatedTarget)) group.classList.remove('visible');
+    };
+    row.addEventListener('mouseenter', show);
+    row.addEventListener('mouseleave', hide);
+    group.addEventListener('mouseleave', hide);
+    group.addEventListener('focusin', position);
+    return position;
   }
 
   /* ══ Row builder ═════════════════════════════ */
@@ -160,166 +226,173 @@ const RecordsView = (() => {
     tr.appendChild(_dateCell(rec, 'paidDate'));
 
     const ts = document.createElement('td'); ts.appendChild(_pillPair(rec)); tr.appendChild(ts);
-    tr.appendChild(_txtCell(rec, 'notes', { muted: true, maxW: '160px' }));
+    tr.appendChild(_txtCell(rec, 'notes', { muted: true, tooltip: true }));
 
     /* Row actions: duplicate + delete */
-    const td = document.createElement('td');
-    const acts = document.createElement('div'); acts.style.cssText = 'display:flex;gap:.2rem;opacity:0;transition:opacity .15s';
-    const dupBtn = UI.Button({ icon: '⧉', variant: 'ghost', size: 'sm', title: 'Дублировать строку', onClick: () => _dupRow(rec) });
-    const delBtn = UI.Button({ icon: '✕', variant: 'danger', size: 'sm', title: 'Удалить', onClick: () => _del(rec.id) });
-    acts.appendChild(dupBtn); acts.appendChild(delBtn);
-    tr.addEventListener('mouseenter', () => acts.style.opacity = '1');
-    tr.addEventListener('mouseleave', () => acts.style.opacity = '0');
-    td.appendChild(acts); tr.appendChild(td);
     return tr;
   }
 
   /* ══ Cell factories ══════════════════════════ */
-  function _txtCell(rec, field, { color, fw, muted, maxW, dl } = {}) {
+  function _txtCell(rec, field, { color, fw, muted, tooltip, dl } = {}) {
     const td = document.createElement('td');
     td.className = 'editable' + (muted ? ' accent-muted' : '');
-    if (maxW) { td.style.maxWidth = maxW; td.style.overflow = 'hidden'; td.style.textOverflow = 'ellipsis'; td.style.whiteSpace = 'nowrap'; }
     if (color) td.style.color = color;
     if (fw) td.style.fontWeight = fw;
-    const sp = document.createElement('span'); sp.textContent = rec[field] || '';
-    if (rec[field] && maxW) td.title = rec[field];
-    td.appendChild(sp);
-    td.addEventListener('click', () => _activateTxt(td, sp, rec, field, dl, maxW)); // Pass maxW here
+    const display = document.createElement('span');
+    display.textContent = rec[field] || '';
+    td.appendChild(display);
+    if (tooltip) td.title = display.textContent;
+    td.addEventListener('click', () => {
+      if (td.querySelector('.cell-input')) return;
+      const input = document.createElement('input');
+      input.value = rec[field] || '';
+      if (dl) {
+        const id = 'dl-' + dl;
+        let list = document.getElementById(id);
+        if (!list) {
+          list = document.createElement('datalist');
+          list.id = id;
+          document.body.appendChild(list);
+        }
+        const values = dl === 'subjects' ? Storage.getSubjects() : Storage.getClients();
+        list.replaceChildren(...values.map(value => new Option(value)));
+        input.setAttribute('list', id);
+      }
+      _editCell(td, input, [display], () => {
+        const value = input.value.trim();
+        _saveField(rec, field, value);
+        display.textContent = value;
+        if (tooltip) td.title = value;
+        if (dl) _rebuildFilters();
+      });
+    });
     return td;
   }
 
-  function _activateTxt(td, sp, rec, field, dl, maxW) {  // Add maxW parameter
-    if (td.querySelector('.cell-input')) return;
-    const inp = document.createElement('input'); inp.className = 'cell-input'; inp.value = rec[field] || '';
-    if (dl) {
-      const id = 'dl-' + dl; let dlist = document.getElementById(id);
-      if (!dlist) { dlist = document.createElement('datalist'); dlist.id = id; document.body.appendChild(dlist); }
-      dlist.innerHTML = '';
-      (dl === 'subjects' ? Storage.getSubjects() : Storage.getClients()).forEach(v => { const o = document.createElement('option'); o.value = v; dlist.appendChild(o); });
-      inp.setAttribute('list', id);
-    }
-    td.innerHTML = ''; td.appendChild(inp); inp.focus(); inp.select();
-
-    const commit = () => {
-      const val = inp.value.trim(); rec[field] = val;
-      Storage.updateRecord(rec.id, { [field]: val });
-      sp.textContent = val;
-      if (maxW && val) td.title = val;  // Now maxW is defined
-      td.innerHTML = ''; td.appendChild(sp);
-      if (dl) _rebuildFilters();
-    };
-    inp.addEventListener('blur', commit);
-    inp.addEventListener('keydown', e => {
-      if (e.key === 'Tab') { e.preventDefault(); commit(); _focusNext(td, !e.shiftKey); }
-      if (e.key === 'Enter') { e.preventDefault(); commit(); _focusBelow(td); }
-      if (e.key === 'Escape') { td.innerHTML = ''; td.appendChild(sp); }
-    });
-  }
-
   function _numCell(rec, field) {
-    const td = document.createElement('td'); td.className = 'editable';
-    const sp = document.createElement('span'); sp.textContent = rec[field] ? rec[field] + ' ₴' : '—'; td.appendChild(sp);
+    const td = document.createElement('td');
+    td.className = 'editable td-num';
+    const display = document.createElement('span');
+    display.textContent = rec[field] ? _formatPrice(rec[field]) : '—';
+    td.appendChild(display);
     td.addEventListener('click', () => {
       if (td.querySelector('.cell-input')) return;
-      const inp = document.createElement('input'); inp.type = 'number'; inp.min = '0';
-      inp.className = 'cell-input'; inp.style.textAlign = 'right'; inp.style.width = '70px';
-      inp.value = rec[field] || ''; td.innerHTML = ''; td.appendChild(inp); inp.focus(); inp.select();
-      const commit = () => {
-        const val = +inp.value || 0; rec[field] = val;
-        Storage.updateRecord(rec.id, { [field]: val });
-        sp.textContent = val ? val + ' ₴' : '—'; td.innerHTML = ''; td.appendChild(sp);
-      };
-      inp.addEventListener('blur', commit);
-      inp.addEventListener('keydown', e => {
-        if (e.key === 'Tab') { e.preventDefault(); commit(); _focusNext(td, !e.shiftKey); }
-        if (e.key === 'Enter') { e.preventDefault(); commit(); _focusBelow(td); }
-        if (e.key === 'Escape') { td.innerHTML = ''; td.appendChild(sp); }
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.min = '0';
+      input.step = 'any';
+      input.value = rec[field] || '';
+      _editCell(td, input, [display], () => {
+        const value = Number(input.value) || 0;
+        _saveField(rec, field, value);
+        display.textContent = value ? _formatPrice(value) : '—';
       });
     });
     return td;
   }
 
   function _dateCell(rec, field) {
-    const td = document.createElement('td'); td.className = 'editable accent-muted';
-    const sp = document.createElement('span'); sp.textContent = _fmt(rec[field]);
-
-    /* Quick "today" mini button */
-    const todayBtn = document.createElement('span');
-    todayBtn.textContent = '⊙'; todayBtn.title = 'Отметить сегодня';
-    todayBtn.style.cssText = 'margin-left:.3rem;cursor:pointer;opacity:0;transition:opacity .15s;font-size:.85rem;color:var(--accent-blue)';
-    tr_hover(td, () => todayBtn.style.opacity = (rec[field] ? '0' : '1'), () => todayBtn.style.opacity = '0');
-    todayBtn.addEventListener('click', e => {
-      e.stopPropagation();
-      if (!rec[field]) {
-        rec[field] = _today(); Storage.updateRecord(rec.id, { [field]: rec[field] });
-        sp.textContent = _fmt(rec[field]);
-        todayBtn.style.opacity = '0';
+    const td = document.createElement('td');
+    td.className = 'editable accent-muted record-date';
+    const display = document.createElement('span');
+    display.textContent = _fmt(rec[field]);
+    const today = UI.Button({ icon: UI.Icon('today'), title: 'Отметить сегодня', className: 'today-button',
+      onClick: event => {
+        event.stopPropagation();
+        _saveField(rec, field, _today());
+        display.textContent = _fmt(rec[field]);
+        today.hidden = true;
         _refreshRowPills(td, rec);
       }
     });
-
-    td.appendChild(sp); td.appendChild(todayBtn);
+    today.tabIndex = -1;
+    today.hidden = Boolean(rec[field]);
+    td.append(display, today);
     td.addEventListener('click', () => {
       if (td.querySelector('.cell-input')) return;
-      const inp = document.createElement('input'); inp.type = 'date'; inp.className = 'cell-input'; inp.style.width = '130px';
-      inp.value = rec[field] || ''; td.innerHTML = ''; td.appendChild(inp); inp.focus();
-      const commit = () => {
-        const val = inp.value; rec[field] = val; Storage.updateRecord(rec.id, { [field]: val });
-        sp.textContent = _fmt(val); td.innerHTML = ''; td.appendChild(sp); td.appendChild(todayBtn);
+      const input = document.createElement('input');
+      input.type = 'date';
+      input.value = rec[field] || '';
+      _editCell(td, input, [display, today], () => {
+        _saveField(rec, field, input.value);
+        display.textContent = _fmt(rec[field]);
+        today.hidden = Boolean(rec[field]);
         _refreshRowPills(td, rec);
-      };
-      inp.addEventListener('blur', commit);
-      inp.addEventListener('change', () => inp.blur());
-      inp.addEventListener('keydown', e => {
-        if (e.key === 'Tab') { e.preventDefault(); commit(); _focusNext(td, !e.shiftKey); }
-        if (e.key === 'Escape') { td.innerHTML = ''; td.appendChild(sp); td.appendChild(todayBtn); }
       });
     });
     return td;
   }
 
-  /* helper to show/hide on row hover */
-  function tr_hover(td, show, hide) {
-    // attach to the closest tr lazily (tr doesn't exist yet at call time)
-    requestAnimationFrame(() => {
-      const tr = td.closest('tr');
-      if (!tr) return;
-      tr.addEventListener('mouseenter', show);
-      tr.addEventListener('mouseleave', hide);
+  function _editCell(td, input, children, commit) {
+    input.className = 'cell-input';
+    td.replaceChildren(input);
+    input.focus();
+    if (input.type !== 'date') input.select();
+
+    function finish(save) {
+      input.removeEventListener('blur', blur);
+      if (save) commit();
+      td.replaceChildren(...children);
+    }
+
+    const blur = () => finish(true);
+    input.addEventListener('blur', blur);
+    input.addEventListener('keydown', event => {
+      if (!['Tab', 'Enter', 'Escape'].includes(event.key)) return;
+      event.preventDefault();
+      finish(event.key !== 'Escape');
+      if (event.key === 'Tab') _focusNext(td, !event.shiftKey);
+      if (event.key === 'Enter') _focusBelow(td);
     });
   }
 
-  /* ══ Status pills ════════════════════════════ */
+  function _saveField(rec, field, value) {
+    if (rec[field] === value) return;
+    rec[field] = value;
+    Storage.updateRecord(rec.id, { [field]: value });
+    if (field === 'price' || field === 'paidDate') _updateTotals();
+  }
+
   function _pillPair(rec) {
-    const pair = document.createElement('div'); pair.className = 'status-pair';
-    const dp = document.createElement('span');
-    const pp = document.createElement('span');
-    const draw = () => {
-      dp.className = 'status-pill ' + (rec.doneDate ? 'pill-done-on' : 'pill-done-off');
-      dp.textContent = rec.doneDate ? '✓ выпол' : '○ выпол';
-      dp.title = rec.doneDate ? 'Выполнено: ' + _fmt(rec.doneDate) : 'Нажмите — отметить выполнение';
-      pp.className = 'status-pill ' + (rec.paidDate ? 'pill-paid-on' : 'pill-paid-off');
-      pp.textContent = rec.paidDate ? '✓ оплач' : '○ оплач';
-      pp.title = rec.paidDate ? 'Оплачено: ' + _fmt(rec.paidDate) : 'Нажмите — отметить оплату';
-    };
-    dp.addEventListener('click', () => {
-      if (!rec.doneDate) { rec.doneDate = _today(); Storage.updateRecord(rec.id, { doneDate: rec.doneDate }); _refreshRowDate(dp, 'doneDate', rec); draw(); }
-      else _datePop(dp, rec, 'doneDate', draw);
+    const pair = document.createElement('div');
+    pair.className = 'status-pair';
+    const fields = ['doneDate', 'paidDate'];
+    fields.forEach(field => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.dataset.field = field;
+      button.addEventListener('click', () => {
+        const refresh = () => {
+          _refreshRowDate(button, field, rec);
+          _drawPill(button, rec);
+        };
+        if (rec[field]) {
+          _datePop(button, rec, field, refresh);
+          return;
+        }
+        _saveField(rec, field, _today());
+        refresh();
+      });
+      _drawPill(button, rec);
+      pair.appendChild(button);
     });
-    pp.addEventListener('click', () => {
-      if (!rec.paidDate) { rec.paidDate = _today(); Storage.updateRecord(rec.id, { paidDate: rec.paidDate }); _refreshRowDate(pp, 'paidDate', rec); draw(); }
-      else _datePop(pp, rec, 'paidDate', draw);
-    });
-    draw(); pair.appendChild(dp); pair.appendChild(pp);
     return pair;
   }
 
-  function _refreshRowPills(cellEl, rec) {
-    const pair = cellEl.closest('tr')?.querySelector('.status-pair');
-    if (!pair) return;
-    const [dp, pp] = pair.querySelectorAll('.status-pill');
-    if (dp) { dp.className = 'status-pill ' + (rec.doneDate ? 'pill-done-on' : 'pill-done-off'); dp.textContent = rec.doneDate ? '✓ выпол' : '○ выпол'; }
-    if (pp) { pp.className = 'status-pill ' + (rec.paidDate ? 'pill-paid-on' : 'pill-paid-off'); pp.textContent = rec.paidDate ? '✓ оплач' : '○ оплач'; }
+  function _drawPill(button, rec) {
+    const field = button.dataset.field;
+    const done = field === 'doneDate';
+    const date = rec[field];
+    const label = done ? 'Выполнено' : 'Оплачено';
+    const action = done ? 'Отметить выполнение' : 'Отметить оплату';
+    button.className = `status-pill pill-${done ? 'done' : 'paid'}-${date ? 'on' : 'off'}`;
+    button.textContent = done ? 'Вып.' : 'Опл.';
+    button.title = date ? `${label} ${_fmt(date)}` : action;
+    button.setAttribute('aria-label', button.title);
+  }
+
+  function _refreshRowPills(cell, rec) {
+    cell.closest('tr').querySelectorAll('.status-pill').forEach(button => _drawPill(button, rec));
   }
 
   function _refreshRowDate(pillEl, field, rec) {
@@ -327,6 +400,8 @@ const RecordsView = (() => {
     const idx = field === 'doneDate' ? 5 : 6;
     const sp = tr.cells[idx]?.querySelector('span');
     if (sp) sp.textContent = _fmt(rec[field]);
+    const today = tr.cells[idx]?.querySelector('.today-button');
+    if (today) today.hidden = Boolean(rec[field]);
   }
 
   function _datePop(anchor, rec, field, onDone) {
@@ -339,12 +414,12 @@ const RecordsView = (() => {
     const row = document.createElement('div'); row.style.cssText = 'display:flex;gap:.4rem';
     row.appendChild(UI.Button({
       text: 'Очистить', variant: 'danger', size: 'sm', onClick: () => {
-        rec[field] = ''; Storage.updateRecord(rec.id, { [field]: '' }); _refreshRowDate(anchor, field, rec); onDone(); pop.remove();
+        _saveField(rec, field, ''); _refreshRowDate(anchor, field, rec); onDone(); pop.remove();
       }
     }));
     row.appendChild(UI.Button({
       text: 'OK', variant: 'primary', size: 'sm', onClick: () => {
-        rec[field] = inp.value; Storage.updateRecord(rec.id, { [field]: inp.value }); _refreshRowDate(anchor, field, rec); onDone(); pop.remove();
+        _saveField(rec, field, inp.value); _refreshRowDate(anchor, field, rec); onDone(); pop.remove();
       }
     }));
     pop.appendChild(row);
@@ -358,41 +433,53 @@ const RecordsView = (() => {
   }
 
   /* ══ Keyboard navigation ═════════════════════ */
-  function _focusNext(currentTd, forward = true) {
-    const tr = currentTd.closest('tr'); if (!tr) return;
-    const colIdx = currentTd.cellIndex;
-    const cols = EDITABLE_COLS;
-    const cur = cols.indexOf(colIdx);
-    if (cur === -1) return;
-    const nextCol = forward ? cols[cur + 1] : cols[cur - 1];
-    if (nextCol === undefined) {
-      // move to next/prev row, same col
-      const rows = [...document.querySelectorAll('#rtw tbody tr:not(:last-child)')];
-      const ri = rows.indexOf(tr);
-      const nextRow = rows[forward ? ri + 1 : ri - 1];
-      if (nextRow) nextRow.cells[colIdx]?.click();
+  function _focusNext(cell, forward) {
+    const index = EDITABLE_COLS.indexOf(cell.cellIndex);
+    const column = EDITABLE_COLS[index + (forward ? 1 : -1)];
+    const row = cell.parentElement;
+    if (column !== undefined) {
+      row.cells[column].click();
       return;
     }
-    tr.cells[nextCol]?.click();
+
+    const edge = forward ? EDITABLE_COLS[0] : EDITABLE_COLS.at(-1);
+    if (_focusAdjacentRow(row, edge, forward)) return;
+    if (forward) document.querySelector('#rtw .new-record-button')?.focus();
+    else [...document.querySelectorAll('#rtw .sort-button')].at(-1)?.focus();
   }
 
-  function _focusBelow(currentTd) {
-    const tr = currentTd.closest('tr'); if (!tr) return;
-    const rows = [...document.querySelectorAll('#rtw tbody tr:not(:last-child)')];
-    const ri = rows.indexOf(tr);
-    const nextRow = rows[ri + 1];
-    if (nextRow) nextRow.cells[currentTd.cellIndex]?.click();
+  function _focusBelow(cell) {
+    _focusAdjacentRow(cell.parentElement, cell.cellIndex, true);
   }
 
-  /* ══ Add / Delete / Duplicate ════════════════ */
+  function _focusAdjacentRow(row, column, forward) {
+    const adjacent = forward ? row.nextElementSibling : row.previousElementSibling;
+    if (adjacent?.matches('tr[data-id]')) {
+      adjacent.cells[column].click();
+      return true;
+    }
+
+    const page = _page + (forward ? 1 : -1);
+    if (page < 1 || page > Math.ceil(_filt.length / PER)) return false;
+    const viewport = document.getElementById('rtw');
+    viewport.scrollTop = 0;
+    _page = page;
+    _renderTable();
+    const rows = viewport.querySelectorAll('tbody tr[data-id]');
+    rows[forward ? 0 : rows.length - 1].cells[column].click();
+    return true;
+  }
+
   function _addRow() {
-    const rec = Storage.addRecord({ semesterId: _semId, subject: '', taskNum: '', client: '', price: 0, doneDate: '', paidDate: '', notes: '' });
-    _recs = Storage.getRecords(_semId); _filter();
-    requestAnimationFrame(() => {
-      const tr = document.querySelector(`tr[data-id="${rec.id}"]`);
-      tr?.cells[1]?.click();
-      tr?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    const rec = Storage.addRecord({
+      semesterId: _semId, client: '', subject: '', taskNum: '', price: 0,
+      doneDate: '', paidDate: '', notes: ''
     });
+    _recs = Storage.getRecords(_semId);
+    _filter({ reveal: rec.id });
+    const row = [...document.querySelectorAll('#rtw tr[data-id]')].find(row => row.dataset.id === rec.id);
+    row.cells[EDITABLE_COLS[0]].click();
+    row.scrollIntoView({ block: 'nearest' });
   }
 
   function _dupRow(rec) {
@@ -421,7 +508,8 @@ const RecordsView = (() => {
   }
   function _fmt(d) { if (!d) return '—'; try { return new Date(d + 'T00:00:00').toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: '2-digit' }); } catch { return d; } }
   function _today() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
-  function _esc(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  const priceFormat = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 });
+  function _formatPrice(value) { return priceFormat.format(value) + ' ₴'; }
 
   return { mount };
 })();

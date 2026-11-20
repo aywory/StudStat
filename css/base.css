@@ -2,6 +2,10 @@
    BASE.CSS — reset, tokens, typography, utils
    ═══════════════════════════════════════════ */
 
+:root[data-theme] {
+  --font-body: "Golos Text", system-ui, sans-serif;
+  --font-display: var(--font-body);
+}
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html { font-size: 14px; scroll-behavior: smooth; }
