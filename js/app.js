@@ -25,6 +25,7 @@ const App = (() => {
     _themes = _discoverThemes();
     _buildModalShell();
     _buildControls();
+    _buildNavTooltip();
 
     const auto = await Storage.tryAutoOpen();
     if (auto.ok) { _boot(); return; }
@@ -125,15 +126,17 @@ const App = (() => {
 
   /* ══ Boot ══════════════════════════════════════ */
   function _boot() {
-    _buildSidebar();
     navigate('dashboard');
     window.addEventListener('beforeunload', () => Storage.saveNow());
   }
 
   /* ══ Navigation ════════════════════════════════ */
   function navigate(view, semId = null) {
+    if (_view === 'records') RecordsView.unmount();
     _view = view; _semId = semId;
     _buildSidebar();
+    document.getElementById('workspace-title').replaceChildren();
+    document.getElementById('workspace-filters').replaceChildren();
     const main = document.getElementById('main');
     main.innerHTML = '';
     switch (view) {
@@ -144,26 +147,10 @@ const App = (() => {
     }
   }
 
-  /* ══ Header ════════════════════════════════════ */
+  /* ══ App controls ══════════════════════════════ */
   function _buildControls() {
     const controls = document.getElementById('app-controls');
-    const nav = document.getElementById('navigation');
-    const menu = UI.Button({ icon: UI.Icon('panel'), onClick: () => setMenuHidden(!nav.hidden) });
-    menu.setAttribute('aria-controls', nav.id);
-
-    function setMenuHidden(hidden) {
-      nav.hidden = hidden;
-      document.getElementById('app').classList.toggle('menu-hidden', hidden);
-      menu.title = hidden ? 'Показать меню' : 'Скрыть меню';
-      menu.setAttribute('aria-label', menu.title);
-      menu.setAttribute('aria-expanded', String(!hidden));
-      menu.querySelector('.btn-icon-inner').innerHTML = UI.Icon(hidden ? 'expand' : 'panel');
-      localStorage.setItem('uchet_menu_hidden', String(hidden));
-    }
-
-    setMenuHidden(localStorage.getItem('uchet_menu_hidden') === 'true');
     controls.append(
-      menu,
       _makeThemePicker(),
       UI.Button({
         icon: UI.Icon('save'), title: 'Сохранить немедленно',
@@ -258,26 +245,68 @@ const App = (() => {
   /* ══ Sidebar ═══════════════════════════════════ */
   function _buildSidebar() {
     const sb = document.getElementById('navigation');
-    sb.innerHTML = '';
-    _navSection(sb, 'Главная');
-    sb.appendChild(_navItem('overview', 'Обзор', 'dashboard', null));
-    sb.appendChild(_navItem('semesters', 'Семестры', 'semesters', null));
+    document.getElementById('nav-tooltip').hidden = true;
+    const scrollTop = sb.scrollTop;
+    sb.replaceChildren();
+    const main = _navSection(sb, 'Главная');
+    main.append(_navItem('overview', 'Обзор', 'dashboard', null),
+      _navItem('semesters', 'Семестры', 'semesters', null));
     const sems = Storage.getSemesters();
     if (sems.length) {
-      _divider(sb); _navSection(sb, 'Учёт');
-      sems.forEach(s => sb.appendChild(_navItem('records', s.label, 'records', s.id)));
-      _divider(sb); _navSection(sb, 'Аналитика');
-      sems.forEach(s => sb.appendChild(_navItem('analytics', s.label, 'analytics', s.id)));
+      const records = _navSection(sb, 'Учёт');
+      const analytics = _navSection(sb, 'Аналитика');
+      sems.forEach(s => {
+        records.appendChild(_navItem('records', `Учёт · ${s.label}`, 'records', s.id));
+        analytics.appendChild(_navItem('analytics', `Аналитика · ${s.label}`, 'analytics', s.id));
+      });
     }
+    sb.scrollTop = scrollTop;
   }
-  function _navSection(sb, t) { const d = document.createElement('div'); d.className = 'nav-section'; d.textContent = t; sb.appendChild(d); }
-  function _divider(sb) { const d = document.createElement('div'); d.className = 'sidebar-divider'; sb.appendChild(d); }
+  function _buildNavTooltip() {
+    const sidebar = document.getElementById('sidebar');
+    const nav = document.getElementById('navigation');
+    const tooltip = document.createElement('div');
+    tooltip.id = 'nav-tooltip';
+    tooltip.hidden = true;
+    tooltip.setAttribute('aria-hidden', 'true');
+    sidebar.appendChild(tooltip);
+
+    function show(event) {
+      const button = event.target.closest('.nav-item');
+      if (!button) { hide(); return; }
+      const bounds = button.getBoundingClientRect();
+      tooltip.textContent = button.getAttribute('aria-label');
+      tooltip.style.top = bounds.top - sidebar.getBoundingClientRect().top + bounds.height / 2 + 'px';
+      tooltip.hidden = false;
+    }
+    function hide() { tooltip.hidden = true; }
+
+    nav.addEventListener('pointerover', show);
+    nav.addEventListener('pointerleave', hide);
+    nav.addEventListener('focusin', show);
+    nav.addEventListener('focusout', hide);
+    nav.addEventListener('scroll', hide);
+  }
+  function _navSection(sidebar, label) {
+    const group = document.createElement('div');
+    group.className = 'nav-section';
+    group.setAttribute('role', 'group');
+    group.setAttribute('aria-label', label);
+    sidebar.appendChild(group);
+    return group;
+  }
   function _navItem(icon, text, view, semId) {
     const el = document.createElement('button');
     el.type = 'button';
-    el.className = 'nav-item' + (_view === view && _semId === semId ? ' active' : '');
-    el.innerHTML = `<span class="nav-icon">${UI.Icon(icon)}</span><span>${_esc(text)}</span>`;
-    el.addEventListener('click', () => navigate(view, semId));
+    const active = _view === view && _semId === semId;
+    el.className = active ? 'nav-item active' : 'nav-item';
+    el.setAttribute('aria-label', text);
+    if (active) el.setAttribute('aria-current', 'page');
+    el.innerHTML = UI.Icon(icon);
+    el.addEventListener('click', event => {
+      navigate(view, semId);
+      if (!event.detail) document.querySelector('#navigation [aria-current]')?.focus();
+    });
     return el;
   }
 
