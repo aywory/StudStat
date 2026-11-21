@@ -1,589 +1,355 @@
-/**
- * view-analytics.js
- * Rich analytics: multiple chart modes, period filter, breakdowns.
- */
-
+// Shared statistics screen for the whole register and for individual semesters.
 const AnalyticsView = (() => {
-  let _charts  = [];
-  let _semId   = null;
-  let _records = [];
-  let _mode    = 'overview';  // 'overview'|'clients'|'subjects'|'timeline'|'compare'
-  let _period  = 'all';       // 'all'|'month'|'quarter'
-  const PAL = ['#4d9fff','#f0c040','#3ddc84','#ff4d4d','#c87aff','#ff9f40','#4dddc8','#ff6b9e','#a0e040','#ff7040'];
+  const S = Statistics;
+  const presets = [
+    ['month', 'Этот месяц'], ['last-month', 'Прошлый месяц'], ['quarter', 'Этот квартал'],
+    ['all', 'Всё время'], ['custom', 'Свой период']
+  ];
+  const tabs = [
+    ['overview', 'Сводка'], ['clients', 'Заказчики'], ['subjects', 'Предметы'], ['compare', 'Сравнение']
+  ];
+  const plurals = new Intl.PluralRules('ru-RU');
+  const workForms = { one: 'работа', few: 'работы', many: 'работ', other: 'работы' };
+  let _preset = 'month';
+  let _customRange;
 
-  function mount(semId, container) {
-    _semId = semId;
-    _charts.forEach(c=>{try{c.destroy();}catch(_){}});
-    _charts=[];
-    container.innerHTML='';
-    _records = Storage.getRecords(semId);
-    container.appendChild(_build());
+  function element(tag, className = '', text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
   }
 
-  /* ══ Main build ════════════════════════════════ */
-  function _build() {
-    const sem  = Storage.getSemesters().find(s=>s.id===_semId);
-    const wrap = document.createElement('div');
+  function button(text, onClick, options = {}) {
+    return UI.Button({ text, onClick, ...options });
+  }
 
-    /* Header */
-    wrap.insertAdjacentHTML('beforeend',`
-      <div class="page-header">
-        <div class="page-header-left">
-          <h2>${_esc(sem?.label??'Аналитика')}</h2>
-          <p class="mt-sm">Детальная статистика и графики</p>
-        </div>
-      </div>`);
+  function openRecords(semesterId, rows, label) {
+    App.navigate('records', semesterId, { ids: rows.map(row => row.record.id), label });
+  }
 
-    if (!_records.length) {
-      wrap.insertAdjacentHTML('beforeend', `<div class="empty-state"><div class="empty-icon">${UI.Icon('analytics')}</div><p>Нет данных для анализа</p></div>`);
-      return wrap;
+  function openRow(row) {
+    const semesterId = row.record.semesterId || null;
+    App.navigate('records', semesterId, { focusId: row.record.id });
+  }
+
+  function amountText(rows) {
+    if (rows.length && rows.every(row => row.price === null)) return '—';
+    return S.money(S.sum(rows));
+  }
+
+  function mount(semesterId, container) {
+    const all = Storage.getRecords().map(S.entry);
+    const semesters = Storage.getSemesters();
+    const scope = semesterId ? all.filter(row => row.record.semesterId === semesterId) : all;
+    const semester = semesters.find(item => item.id === semesterId);
+    const today = S.localDay();
+    let tab = 'overview';
+    let range = _preset === 'custom' && _customRange
+      ? _customRange : S.getRange(_preset, scope.filter(row => !row.draft), today);
+
+    const page = element('div', 'report-page');
+    const header = element('div', 'report-header');
+    const title = element('div');
+    title.append(element('h1', '', semester ? `Семестр «${semester.label}»` : 'Обзор работ'));
+    const controls = element('div', 'report-controls');
+    const period = UI.Select({
+      options: presets.map(([value, label]) => ({ value, label })),
+      value: _preset
+    });
+    period.setAttribute('aria-label', 'Период статистики');
+    const dates = element('form', 'report-dates');
+    const from = UI.Input({ type: 'date', required: true });
+    const to = UI.Input({ type: 'date', required: true });
+    from.max = today;
+    to.max = today;
+    const dateError = element('p', 'report-date-error');
+    dateError.setAttribute('role', 'alert');
+    const apply = element('button', 'btn btn-ghost', 'Применить');
+    apply.type = 'submit';
+    dates.append(UI.FormGroup({ label: 'С', child: from, id: 'report-from' }),
+      UI.FormGroup({ label: 'По', child: to, id: 'report-to' }), apply, dateError);
+    controls.append(period, dates);
+    header.append(title, controls);
+    const toolbar = element('div', 'report-toolbar');
+    const navigation = element('nav', 'report-tabs');
+    navigation.setAttribute('aria-label', 'Разделы статистики');
+    const tabButtons = tabs.map(([id, label]) => {
+      const item = button(label, () => { tab = id; render(); });
+      navigation.appendChild(item);
+      return item;
+    });
+    const caption = element('p', 'report-period');
+    toolbar.append(navigation, caption);
+    const content = element('div', 'report-content');
+    page.append(header, toolbar, content);
+    container.replaceChildren(page);
+
+    function render() {
+      const entries = tab === 'compare' ? all : scope;
+      if (_preset !== 'custom') range = S.getRange(_preset, entries.filter(row => !row.draft), today);
+      dates.hidden = _preset !== 'custom';
+      tabButtons.forEach((item, i) => {
+        if (tabs[i][0] === tab) item.setAttribute('aria-current', 'page');
+        else item.removeAttribute('aria-current');
+      });
+      caption.textContent = range.from === range.to ? S.formatDay(range.to)
+        : `${S.formatDay(range.from)} — ${S.formatDay(range.to)}`;
+      const summary = S.summarize(entries, range, today);
+      content.replaceChildren();
+      if (tab === 'overview') overview(content, semesterId, summary, range);
+      if (tab === 'clients' || tab === 'subjects') breakdown(content, semesterId, summary, tab);
+      if (tab === 'compare') compare(content, semesters, summary, range);
+      const issues = S.quality(entries, today);
+      if (summary.undated) issues.push(['Открытые работы без даты для этого среза',
+        summary.active.filter(row => !row.firstKnown)]);
+      if (issues.length) qualityPanel(content, tab === 'compare' ? null : semesterId, issues);
     }
 
-    /* Mode tabs + period filter */
-    const toolRow = document.createElement('div');
-    toolRow.style.cssText='display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:1rem';
-
-    const tabs = document.createElement('div'); tabs.className='context-tabs';
-    [
-      {id:'overview', label:'Обзор'},
-      {id:'clients',  label:'Заказчики'},
-      {id:'subjects', label:'Предметы'},
-      {id:'timeline', label:'По времени'},
-      {id:'compare',  label:'Сравнение'},
-    ].forEach(({id,label})=>{
-      const t=document.createElement('button'); t.className='context-tab'+(id===_mode?' active':'');
-      t.textContent=label;
-      t.addEventListener('click',()=>{ _mode=id; _rerender(wrap); });
-      tabs.appendChild(t);
-    });
-    toolRow.appendChild(tabs);
-
-    /* Period filter (for timeline/overview) */
-    const pSel = UI.Select({options:[{value:'all',label:'Всё время'},{value:'month',label:'Посл. месяц'},{value:'quarter',label:'Посл. квартал'}], value:_period});
-    pSel.style.width='140px';
-    pSel.addEventListener('change',()=>{ _period=pSel.value; _rerender(wrap); });
-    toolRow.appendChild(pSel);
-
-    wrap.appendChild(toolRow);
-
-    /* Content area */
-    const content = document.createElement('div'); content.id='an-content';
-    wrap.appendChild(content);
-
-    _renderMode(content);
-    return wrap;
-  }
-
-  function _rerender(wrap) {
-    // Update tab active states
-    wrap.querySelectorAll('.context-tab').forEach(t=>{
-      t.classList.toggle('active', t.textContent === {
-        overview:'Обзор',clients:'Заказчики',subjects:'Предметы',timeline:'По времени',compare:'Сравнение'
-      }[_mode]);
-    });
-    _charts.forEach(c=>{try{c.destroy();}catch(_){}});
-    _charts=[];
-    const content = document.getElementById('an-content');
-    if(content){ content.innerHTML=''; _renderMode(content); }
-  }
-
-  /* ══ Filter records by period ══════════════════ */
-  function _filterByPeriod(recs) {
-    if (_period === 'all') return recs;
-    const now = new Date();
-    const from = new Date(now);
-    if (_period === 'month')   from.setMonth(now.getMonth()-1);
-    if (_period === 'quarter') from.setMonth(now.getMonth()-3);
-    return recs.filter(r => {
-      const d = r.paidDate ? new Date(r.paidDate) : (r.doneDate ? new Date(r.doneDate) : null);
-      return d && d >= from;
-    });
-  }
-
-  /* ══ Mode renderers ════════════════════════════ */
-  function _renderMode(container) {
-    const recs = _filterByPeriod(_records);
-    switch(_mode) {
-      case 'overview':  _renderOverview(container, recs);  break;
-      case 'clients':   _renderClients(container, recs);   break;
-      case 'subjects':  _renderSubjects(container, recs);  break;
-      case 'timeline':  _renderTimeline(container, recs);  break;
-      case 'compare':   _renderCompare(container);          break;
-    }
-  }
-
-  /* ── Overview ───────────────────────────────── */
-  function _renderOverview(container, recs) {
-    const s = _stats(recs);
-
-    /* KPI */
-    const grid=document.createElement('div'); grid.className='stat-grid'; container.appendChild(grid);
-    [
-      {label:'Всего работ',    value:s.total,           sub:`${s.doneCount} выполнено`,           color:'blue'  },
-      {label:'Сумма оплат',    value:s.paidSum+' ₴',    sub:`ср. ${Math.round(s.avg)} ₴/работу`,  color:'green' },
-      {label:'Не оплачено',    value:s.unpaidSum+' ₴',  sub:`${s.unpaidCount} работ`,             color:'red'   },
-      {label:'Заказчиков',     value:s.clientCount,     sub:`предметов: ${s.subjectCount}`,       color:'yellow'},
-      {label:'Закрытых',       value:s.closedCount,     sub:`${Math.round(s.closedCount/s.total*100)||0}% от всех`, color:'green'},
-    ].forEach(({label,value,sub,color})=>{
-      const c=document.createElement('div'); c.className=`stat-card ${color}`;
-      c.innerHTML=`<div class="card-label">${label}</div><div class="stat-value">${value}</div><div class="stat-sub">${sub}</div>`;
-      grid.appendChild(c);
-    });
-
-    /* Two charts side by side */
-    const row=document.createElement('div'); row.className='grid-2 mt-lg'; container.appendChild(row);
-
-    const w1=document.createElement('div'); w1.style.cssText='position:relative;height:220px';
-    const c1=document.createElement('canvas');
-    _wrapCard(row,'Доход по заказчикам',w1,c1);
-
-    const w2=document.createElement('div'); w2.style.cssText='position:relative;height:220px';
-    const c2=document.createElement('canvas');
-    _wrapCard(row,'По предметам',w2,c2);
-
-    /* Summary table */
-    const tc=document.createElement('div'); tc.className='card mt-lg'; tc.innerHTML='<div class="card-header"><h3>Итоговая таблица</h3></div>';
-    tc.appendChild(_summaryTable(s)); container.appendChild(tc);
-
-    requestAnimationFrame(()=>{
-      _barH(c1, Object.entries(s.byClient).sort((a,b)=>b[1].sum-a[1].sum).slice(0,10));
-      _donut(c2, Object.entries(s.bySubject).sort((a,b)=>b[1].sum-a[1].sum));
-    });
-  }
-
-  /* ── Clients deep-dive ──────────────────────── */
-  function _renderClients(container, recs) {
-    const s = _stats(recs);
-    const clients = Object.entries(s.byClient).sort((a,b)=>b[1].sum-a[1].sum);
-
-    /* Stacked bar: sum vs unpaid per client */
-    const w1=document.createElement('div'); w1.style.cssText='position:relative;height:280px';
-    const c1=document.createElement('canvas');
-    _wrapCard(container,'Оплачено vs не оплачено по заказчикам',w1,c1);
-
-    /* Avg price per client */
-    const w2=document.createElement('div'); w2.style.cssText='position:relative;height:240px';
-    const c2=document.createElement('canvas');
-    _wrapCard(container,'Средняя цена работы по заказчикам',w2,c2,'mt-lg');
-
-    /* Per-client detail table */
-    const tc=document.createElement('div'); tc.className='card mt-lg';
-    tc.innerHTML='<div class="card-header"><h3>Детали по заказчикам</h3></div>';
-    const tw=document.createElement('div'); tw.className='table-wrapper';
-    const t=document.createElement('table');
-    t.innerHTML=`<thead><tr>
-      <th class="no-sort">Заказчик</th>
-      <th class="no-sort" style="text-align:right">Работ</th>
-      <th class="no-sort" style="text-align:right">Сумма</th>
-      <th class="no-sort" style="text-align:right">Оплачено</th>
-      <th class="no-sort" style="text-align:right">Не оплачено</th>
-      <th class="no-sort" style="text-align:right">Ср. цена</th>
-      <th class="no-sort" style="text-align:right">Предметы</th>
-    </tr></thead>`;
-    const tb=document.createElement('tbody');
-    clients.forEach(([cli,d])=>{
-      const avg=d.count?Math.round(d.sum/d.count):0;
-      const unpaid=d.sum-d.paidSum;
-      const tr=document.createElement('tr');
-      tr.innerHTML=`<td style="font-weight:600">${_esc(cli)}</td>
-        <td class="td-num">${d.count}</td>
-        <td class="td-num accent-green">${d.sum} ₴</td>
-        <td class="td-num" style="color:var(--accent-blue)">${d.paidSum} ₴</td>
-        <td class="td-num" style="color:${unpaid>0?'var(--accent-red)':'var(--text-muted)'}">${unpaid>0?unpaid+' ₴':'—'}</td>
-        <td class="td-num">${avg} ₴</td>
-        <td class="td-num accent-muted">${[...d.subjects].join(', ')}</td>`;
-      tb.appendChild(tr);
-    });
-    t.appendChild(tb); tw.appendChild(t); tc.appendChild(tw); container.appendChild(tc);
-
-    requestAnimationFrame(()=>{
-      const labels=clients.map(([k])=>k);
-      const paid  =clients.map(([,v])=>v.paidSum);
-      const unpaid=clients.map(([,v])=>v.sum-v.paidSum);
-      const dk=_dk();
-      const ch1=new Chart(c1,{
-        type:'bar',
-        data:{labels,datasets:[
-          {label:'Оплачено',    data:paid,   backgroundColor:'#3ddc84',borderRadius:2},
-          {label:'Не оплачено', data:unpaid, backgroundColor:'#ff4d4d',borderRadius:2},
-        ]},
-        options:{responsive:true,maintainAspectRatio:false,
-          plugins:{legend:{labels:{color:dk?'#999':'#555',font:{size:11}}}},
-          scales:{
-            x:{stacked:true,ticks:{color:dk?'#999':'#555',font:{size:10}},grid:{display:false}},
-            y:{stacked:true,ticks:{color:dk?'#666':'#999',callback:v=>v+'₴',font:{size:10}},grid:{color:dk?'#222':'#eee'}}
-          }
-        }
-      });
-      _charts.push(ch1);
-
-      const avgs=clients.map(([,v])=>v.count?Math.round(v.sum/v.count):0);
-      const ch2=new Chart(c2,{
-        type:'bar',
-        data:{labels,datasets:[{data:avgs,backgroundColor:labels.map((_,i)=>PAL[i%PAL.length]),borderRadius:3}]},
-        options:{responsive:true,maintainAspectRatio:false,
-          plugins:{legend:{display:false}},
-          scales:{
-            x:{ticks:{color:dk?'#999':'#555',font:{size:10}},grid:{display:false}},
-            y:{ticks:{color:dk?'#666':'#999',callback:v=>v+'₴',font:{size:10}},grid:{color:dk?'#222':'#eee'}}
-          }
-        }
-      });
-      _charts.push(ch2);
-    });
-  }
-
-  /* ── Subjects deep-dive ─────────────────────── */
-  function _renderSubjects(container, recs) {
-    const s = _stats(recs);
-    const subs = Object.entries(s.bySubject).sort((a,b)=>b[1].sum-a[1].sum);
-
-    const row=document.createElement('div'); row.className='grid-2'; container.appendChild(row);
-    const w1=document.createElement('div'); w1.style.cssText='position:relative;height:260px'; const c1=document.createElement('canvas'); _wrapCard(row,'Доход по предметам',w1,c1);
-    const w2=document.createElement('div'); w2.style.cssText='position:relative;height:260px'; const c2=document.createElement('canvas'); _wrapCard(row,'Кол-во работ по предметам',w2,c2);
-
-    /* Subject table with per-subject client breakdown */
-    const tc=document.createElement('div'); tc.className='card mt-lg';
-    tc.innerHTML='<div class="card-header"><h3>Детали по предметам</h3></div>';
-    const tw=document.createElement('div'); tw.className='table-wrapper';
-    const t=document.createElement('table');
-    t.innerHTML=`<thead><tr>
-      <th class="no-sort">Предмет</th>
-      <th class="no-sort" style="text-align:right">Работ</th>
-      <th class="no-sort" style="text-align:right">Сумма</th>
-      <th class="no-sort" style="text-align:right">Ср. цена</th>
-      <th class="no-sort" style="text-align:right">Мин</th>
-      <th class="no-sort" style="text-align:right">Макс</th>
-    </tr></thead>`;
-    const tb=document.createElement('tbody');
-    subs.forEach(([sub,d])=>{
-      const subrecs=recs.filter(r=>r.subject===sub);
-      const prices=subrecs.map(r=>r.price||0).filter(p=>p>0);
-      const min=prices.length?Math.min(...prices):0;
-      const max=prices.length?Math.max(...prices):0;
-      const tr=document.createElement('tr');
-      tr.innerHTML=`<td><span style="color:var(--accent-blue);font-weight:600">${_esc(sub)}</span></td>
-        <td class="td-num">${d.count}</td>
-        <td class="td-num accent-green">${d.sum} ₴</td>
-        <td class="td-num">${d.count?Math.round(d.sum/d.count):0} ₴</td>
-        <td class="td-num accent-muted">${min?min+' ₴':'—'}</td>
-        <td class="td-num accent-muted">${max?max+' ₴':'—'}</td>`;
-      tb.appendChild(tr);
-    });
-    t.appendChild(tb); tw.appendChild(t); tc.appendChild(tw); container.appendChild(tc);
-
-    requestAnimationFrame(()=>{
-      _donut(c1, subs, v=>v.sum);
-      _donut(c2, subs, v=>v.count);
-    });
-  }
-
-  /* ── Timeline ───────────────────────────────── */
-  function _renderTimeline(container, recs) {
-    /* Group by week and by month */
-    const monthly={}, weekly={};
-    recs.forEach(r=>{
-      if(!r.paidDate) return;
-      const d=new Date(r.paidDate); if(isNaN(d)) return;
-      const mk=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-      monthly[mk]=(monthly[mk]||0)+(r.price||0);
-      // ISO week
-      const wn=_isoWeek(d);
-      const wk=`${d.getFullYear()}-W${String(wn).padStart(2,'0')}`;
-      weekly[wk]=(weekly[wk]||0)+(r.price||0);
-    });
-
-    const mKeys=Object.keys(monthly).sort();
-    const wKeys=Object.keys(weekly).sort();
-
-    /* Monthly chart */
-    if (mKeys.length) {
-      const w1=document.createElement('div'); w1.style.cssText='position:relative;height:200px';
-      const c1=document.createElement('canvas');
-      _wrapCard(container,'Доходы по месяцам (дата оплаты)',w1,c1);
-
-      requestAnimationFrame(()=>{
-        const dk=_dk();
-        const labels=mKeys.map(k=>{const[y,m]=k.split('-');return new Date(+y,+m-1).toLocaleDateString('ru-RU',{month:'short',year:'2-digit'});});
-        const ch=new Chart(c1,{
-          type:'bar',
-          data:{labels,datasets:[{
-            data:mKeys.map(k=>monthly[k]),
-            backgroundColor:mKeys.map((k,i)=>PAL[i%PAL.length]),
-            borderRadius:3
-          }]},
-          options:{responsive:true,maintainAspectRatio:false,
-            plugins:{legend:{display:false}},
-            scales:{
-              x:{ticks:{color:dk?'#999':'#555',font:{size:10}},grid:{display:false}},
-              y:{ticks:{color:dk?'#666':'#999',callback:v=>v+'₴',font:{size:10}},grid:{color:dk?'#222':'#eee'}}
-            }
-          }
-        });
-        _charts.push(ch);
-      });
+    function initDates() {
+      from.value = range.from;
+      to.value = range.to;
+      dateError.textContent = '';
     }
 
-    /* Cumulative line chart */
-    if (mKeys.length > 1) {
-      const w2=document.createElement('div'); w2.style.cssText='position:relative;height:180px';
-      const c2=document.createElement('canvas');
-      _wrapCard(container,'Накопленный доход',w2,c2,'mt-lg');
-
-      requestAnimationFrame(()=>{
-        const dk=_dk();
-        let cum=0;
-        const labels=mKeys.map(k=>{const[y,m]=k.split('-');return new Date(+y,+m-1).toLocaleDateString('ru-RU',{month:'short',year:'2-digit'});});
-        const data=mKeys.map(k=>{ cum+=monthly[k]; return cum; });
-        const ch=new Chart(c2,{
-          type:'line',
-          data:{labels,datasets:[{data,borderColor:'#3ddc84',backgroundColor:'rgba(61,220,132,.1)',borderWidth:2,pointRadius:3,fill:true,tension:.35}]},
-          options:{responsive:true,maintainAspectRatio:false,
-            plugins:{legend:{display:false}},
-            scales:{
-              x:{ticks:{color:dk?'#999':'#555',font:{size:10}},grid:{color:dk?'#222':'#eee'}},
-              y:{ticks:{color:dk?'#666':'#999',callback:v=>v+'₴',font:{size:10}},grid:{color:dk?'#222':'#eee'}}
-            }
-          }
-        });
-        _charts.push(ch);
-      });
-    }
-
-    /* Work count per month (not money — number of records) */
-    const countByMonth={};
-    recs.forEach(r=>{
-      const d=r.doneDate?new Date(r.doneDate):(r.paidDate?new Date(r.paidDate):null);
-      if(!d||isNaN(d)) return;
-      const k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-      countByMonth[k]=(countByMonth[k]||0)+1;
+    period.addEventListener('change', () => {
+      _preset = period.value;
+      if (_preset === 'custom') {
+        range = _customRange || range;
+        initDates();
+      }
+      render();
     });
-    const cKeys=Object.keys(countByMonth).sort();
-    if (cKeys.length) {
-      const w3=document.createElement('div'); w3.style.cssText='position:relative;height:160px';
-      const c3=document.createElement('canvas');
-      _wrapCard(container,'Кол-во работ по месяцам',w3,c3,'mt-lg');
-      requestAnimationFrame(()=>{
-        const dk=_dk();
-        const labels=cKeys.map(k=>{const[y,m]=k.split('-');return new Date(+y,+m-1).toLocaleDateString('ru-RU',{month:'short',year:'2-digit'});});
-        const ch=new Chart(c3,{
-          type:'bar',
-          data:{labels,datasets:[{data:cKeys.map(k=>countByMonth[k]),backgroundColor:'#4d9fff',borderRadius:3}]},
-          options:{responsive:true,maintainAspectRatio:false,
-            plugins:{legend:{display:false}},
-            scales:{
-              x:{ticks:{color:dk?'#999':'#555',font:{size:10}},grid:{display:false}},
-              y:{ticks:{color:dk?'#666':'#999',font:{size:10},stepSize:1},grid:{color:dk?'#222':'#eee'}}
-            }
-          }
-        });
-        _charts.push(ch);
-      });
+    dates.addEventListener('submit', event => {
+      event.preventDefault();
+      if (from.value > to.value) {
+        dateError.textContent = 'Дата начала должна быть раньше даты окончания или совпадать с ней.';
+        from.focus();
+        return;
+      }
+      dateError.textContent = '';
+      range = _customRange = { from: from.value, to: to.value };
+      render();
+    });
+    initDates();
+    render();
+  }
+
+  function overview(content, semesterId, data, range) {
+    const grid = element('section', 'report-kpis');
+    grid.setAttribute('aria-label', 'Основные показатели');
+    const inPeriod = 'За период';
+    const asOf = 'На ' + S.formatDay(range.to);
+    const count = rows => `${rows.length} ${workForms[plurals.select(rows.length)]}`;
+    const items = [
+      { label: 'Выполнено', value: data.doneRows.length, detail: inPeriod, rows: data.doneRows },
+      { label: 'Получено', value: amountText(data.paidRows), detail: `${inPeriod} · ${count(data.paidRows)}`, rows: data.paidRows, style: 'received' },
+      { label: 'Ожидается к оплате', value: amountText(data.waiting), detail: `${asOf} · ${count(data.waiting)}`, rows: data.waiting, style: 'waiting' },
+      { label: 'В работе', value: data.open.length, detail: `${asOf} · ${data.advance.length} с оплатой`, rows: data.open }
+    ];
+    items.forEach(({ label, value, detail, rows, style }) => {
+      const tile = rows.length ? button('', () => openRecords(semesterId, rows, label)) : element('div');
+      tile.className = `report-kpi ${style || ''}`;
+      tile.append(element('span', 'report-kpi-label', label), element('strong', 'report-figure', value),
+        element('span', 'report-kpi-detail', detail));
+      if (rows.length) tile.insertAdjacentHTML('beforeend', UI.Icon('arrow'));
+      grid.appendChild(tile);
+    });
+    content.appendChild(grid);
+    if ([...data.paidRows, ...data.waiting, ...data.advance].some(row => row.price === null)) {
+      content.appendChild(element('p', 'report-price-note', 'В суммы входят только работы с указанной ценой.'));
+    }
+    const panels = element('div', 'report-panels');
+    panels.append(receipts(semesterId, data.paidRows, range), waitingPanel(semesterId, data.waiting, range.to));
+    content.appendChild(panels);
+    if (data.advance.length) {
+      const advance = button('Открыть работы', () => openRecords(semesterId, data.advance, 'Оплаченные работы в очереди'),
+        { size: 'sm' });
+      const line = element('div', 'report-advance');
+      line.append(element('p', '', `Оплачено по работам в очереди: ${amountText(data.advance)}`), advance);
+      content.appendChild(line);
     }
   }
 
-  /* ── Compare semesters ──────────────────────── */
-  function _renderCompare(container) {
-    const sems = Storage.getSemesters();
-    if (sems.length < 2) {
-      container.insertAdjacentHTML('beforeend', `<div class="empty-state"><div class="empty-icon">${UI.Icon('analytics')}</div><p>Нужно минимум 2 семестра для сравнения</p></div>`);
+  function panel(title, subtitle) {
+    const box = element('section', 'report-panel');
+    const heading = element('div', 'report-panel-heading');
+    heading.append(element('h2', '', title));
+    if (subtitle) heading.append(element('p', '', subtitle));
+    box.appendChild(heading);
+    return box;
+  }
+
+  function receipts(semesterId, paid, range) {
+    const box = panel('Поступления', 'По датам оплаты и ценам из журнала');
+    if (!paid.length) {
+      box.append(element('p', 'report-empty', 'За этот период оплат в журнале нет.'));
+      return box;
+    }
+    const groups = S.buckets(range, paid);
+    const maximum = Math.max(1, ...groups.map(group => S.sum(group.rows)));
+    const scroll = element('div', 'report-plot-scroll');
+    const graph = element('div', 'report-plot');
+    graph.style.setProperty('--columns', groups.length);
+    for (const group of groups) {
+      const amount = S.sum(group.rows);
+      const item = group.rows.length
+        ? button('', () => openRecords(semesterId, group.rows, `Оплаты · ${group.label}`))
+        : element('div');
+      item.className = 'report-bar-column';
+      const amountLabel = amountText(group.rows);
+      const description = `${group.label}: ${amountLabel}`;
+      item.title = description;
+      item.setAttribute('aria-label', description);
+      const track = element('span', 'report-bar-track');
+      const bar = element('span', 'report-bar-fill');
+      bar.style.setProperty('--level', `${amount / maximum * 100}%`);
+      if (!amount) bar.classList.add('zero');
+      track.appendChild(bar);
+      const figure = element('span', 'report-bar-amount', amountLabel);
+      figure.hidden = groups.length > 5;
+      item.append(figure, track, element('span', 'report-bar-label', group.short));
+      graph.appendChild(item);
+    }
+    scroll.appendChild(graph);
+    box.appendChild(scroll);
+    const details = element('details', 'report-details');
+    details.append(element('summary', '', 'Суммы по периодам'));
+    details.append(table(['Период', 'Оплаты', 'Сумма'], groups.map(group => [
+      group.label, group.rows.length, amountText(group.rows)
+    ])));
+    box.appendChild(details);
+    return box;
+  }
+
+  function waitingPanel(semesterId, waiting, asOf) {
+    const box = panel('Ожидают оплаты', `Выполненные работы на ${S.formatDay(asOf)}`);
+    if (!waiting.length) {
+      box.append(element('p', 'report-empty', 'Ожидаемых оплат за выполненные работы нет.'));
+      return box;
+    }
+    const sorted = [...waiting].sort((a, b) => a.done.localeCompare(b.done) || (b.price ?? 0) - (a.price ?? 0));
+    const list = element('ul', 'report-waiting-list');
+    const shown = sorted.slice(0, 5);
+    for (const row of shown) {
+      const item = element('li');
+      const { record } = row;
+      const open = button('', () => openRow(row), { className: 'report-waiting-item' });
+      const name = String(record.client ?? '').trim() || 'Заказчик не указан';
+      const main = element('span', 'report-work-name');
+      const description = [record.subject, record.taskNum && `№ ${record.taskNum}`].filter(Boolean).join(' · ');
+      main.append(element('strong', '', name), element('small', '', description || 'Предмет и задача не указаны'));
+      const info = element('span', 'report-work-amount');
+      const age = S.age(row.done, asOf);
+      const ageLabel = age ? `${age} дн. ожидания` : 'Выполнено в этот день';
+      info.append(element('strong', '', row.price === null ? 'Цена не указана' : S.money(row.price)),
+        element('small', '', ageLabel));
+      open.append(main, info);
+      open.title = `Выполнено ${S.formatDay(row.done)}. Открыть запись`;
+      item.appendChild(open);
+      list.appendChild(item);
+    }
+    box.appendChild(list);
+    if (sorted.length > 1) box.append(button(`Открыть все работы (${sorted.length})`,
+      () => openRecords(semesterId, sorted, 'Работы, ожидающие оплаты'), { size: 'sm', className: 'report-list-link' }));
+    return box;
+  }
+
+  function table(headers, rows) {
+    const scroll = element('div', 'report-table-scroll');
+    const el = element('table', 'report-table');
+    const heading = el.createTHead().insertRow();
+    headers.forEach(label => {
+      const th = element('th', 'no-sort', label);
+      th.scope = 'col';
+      heading.appendChild(th);
+    });
+    const body = el.createTBody();
+    rows.forEach(values => {
+      const row = body.insertRow();
+      values.forEach((value, i) => {
+        const cell = i === 0 ? element('th') : row.insertCell();
+        if (!i) { cell.scope = 'row'; row.appendChild(cell); }
+        if (value instanceof Node) cell.appendChild(value);
+        else cell.textContent = value;
+      });
+    });
+    scroll.appendChild(el);
+    return scroll;
+  }
+
+  function split(summary, keyOf) {
+    const groups = new Map();
+    for (const field of ['doneRows', 'paidRows', 'waiting', 'open']) {
+      for (const row of summary[field]) {
+        const { key, label } = keyOf(row);
+        if (!groups.has(key)) groups.set(key, { label, doneRows: [], paidRows: [], waiting: [], open: [] });
+        groups.get(key)[field].push(row);
+      }
+    }
+    return groups;
+  }
+
+  function breakdown(content, semesterId, summary, tab) {
+    const field = tab === 'clients' ? 'client' : 'subject';
+    const box = panel(tab === 'clients' ? 'По заказчикам' : 'По предметам',
+      'Выполнение и оплаты за период. Остатки на конец периода.');
+    const groups = [...split(summary, ({ record }) => {
+      const label = String(record[field] ?? '').trim().replace(/\s+/g, ' ');
+      return { key: label.toLowerCase(), label: label || 'Не указан' };
+    }).values()];
+    groups.sort((a, b) => S.sum(b.waiting) - S.sum(a.waiting) || S.sum(b.paidRows) - S.sum(a.paidRows)
+      || a.label.localeCompare(b.label, 'ru'));
+    if (!groups.length) box.append(element('p', 'report-empty', 'Нет работ или оплат для этой разбивки.'));
+    else box.append(table([
+      tab === 'clients' ? 'Заказчик' : 'Предмет', 'Выполнено', 'Получено', 'Ожидается к оплате', 'В работе', 'Медиана цены'
+    ], groups.map(group => {
+      const cohort = [...new Set([...group.doneRows, ...group.paidRows, ...group.waiting, ...group.open])];
+      const prices = cohort.map(row => row.price).filter(price => price !== null);
+      const typical = S.median(prices);
+      return [
+        button(group.label, () => openRecords(semesterId, cohort, group.label), { size: 'sm' }),
+        group.doneRows.length, amountText(group.paidRows), amountText(group.waiting), group.open.length,
+        typical === null ? '—' : `${S.money(typical)} · n=${prices.length}`
+      ];
+    })));
+    content.appendChild(box);
+  }
+
+  function compare(content, semesters, summary, range) {
+    const box = panel('Сравнение семестров', 'Одинаковые даты для всех семестров. Остатки на конец периода.');
+    if (!semesters.length) {
+      box.append(element('p', 'report-empty', 'Добавьте семестр, чтобы сравнить работы и оплаты.'));
+      content.appendChild(box);
       return;
     }
-
-    const semData = sems.map(sem=>{
-      const recs=Storage.getRecords(sem.id);
-      return {
-        label: sem.label,
-        count: recs.length,
-        sum:   recs.reduce((s,r)=>s+(r.price||0),0),
-        paid:  recs.filter(r=>r.paidDate).reduce((s,r)=>s+(r.price||0),0),
-        avg:   recs.length?Math.round(recs.reduce((s,r)=>s+(r.price||0),0)/recs.length):0,
-        done:  recs.filter(r=>r.doneDate).length,
-      };
-    });
-
-    /* Grouped bar: sum comparison */
-    const w1=document.createElement('div'); w1.style.cssText='position:relative;height:220px'; const c1=document.createElement('canvas');
-    _wrapCard(container,'Сравнение доходов по семестрам',w1,c1);
-
-    const w2=document.createElement('div'); w2.style.cssText='position:relative;height:200px'; const c2=document.createElement('canvas');
-    _wrapCard(container,'Кол-во работ по семестрам',w2,c2,'mt-lg');
-
-    /* Comparison table */
-    const tc=document.createElement('div'); tc.className='card mt-lg';
-    tc.innerHTML='<div class="card-header"><h3>Сравнительная таблица</h3></div>';
-    const tw=document.createElement('div'); tw.className='table-wrapper';
-    const t=document.createElement('table');
-    t.innerHTML=`<thead><tr>
-      <th class="no-sort">Семестр</th>
-      <th class="no-sort" style="text-align:right">Работ</th>
-      <th class="no-sort" style="text-align:right">Сумма</th>
-      <th class="no-sort" style="text-align:right">Оплачено</th>
-      <th class="no-sort" style="text-align:right">Ср. цена</th>
-      <th class="no-sort" style="text-align:right">Выполнено</th>
-    </tr></thead>`;
-    const tb=document.createElement('tbody');
-    semData.forEach(d=>{
-      const tr=document.createElement('tr');
-      tr.innerHTML=`<td style="font-weight:600">${_esc(d.label)}</td>
-        <td class="td-num">${d.count}</td>
-        <td class="td-num accent-green">${d.sum} ₴</td>
-        <td class="td-num" style="color:var(--accent-blue)">${d.paid} ₴</td>
-        <td class="td-num">${d.avg} ₴</td>
-        <td class="td-num">${d.done}</td>`;
-      tb.appendChild(tr);
-    });
-    t.appendChild(tb); tw.appendChild(t); tc.appendChild(tw); container.appendChild(tc);
-
-    requestAnimationFrame(()=>{
-      const dk=_dk(); const labels=semData.map(d=>d.label);
-      const ch1=new Chart(c1,{
-        type:'bar',
-        data:{labels,datasets:[
-          {label:'Сумма',    data:semData.map(d=>d.sum),  backgroundColor:'#4d9fff',borderRadius:3},
-          {label:'Оплачено', data:semData.map(d=>d.paid), backgroundColor:'#3ddc84',borderRadius:3},
-        ]},
-        options:{responsive:true,maintainAspectRatio:false,
-          plugins:{legend:{labels:{color:dk?'#999':'#555',font:{size:11}}}},
-          scales:{
-            x:{ticks:{color:dk?'#999':'#555',font:{size:11}},grid:{display:false}},
-            y:{ticks:{color:dk?'#666':'#999',callback:v=>v+'₴',font:{size:10}},grid:{color:dk?'#222':'#eee'}}
-          }
-        }
-      });
-      _charts.push(ch1);
-
-      const ch2=new Chart(c2,{
-        type:'bar',
-        data:{labels,datasets:[
-          {label:'Работ',      data:semData.map(d=>d.count),backgroundColor:'#c87aff',borderRadius:3},
-          {label:'Выполнено',  data:semData.map(d=>d.done), backgroundColor:'#ff9f40',borderRadius:3},
-        ]},
-        options:{responsive:true,maintainAspectRatio:false,
-          plugins:{legend:{labels:{color:dk?'#999':'#555',font:{size:11}}}},
-          scales:{
-            x:{ticks:{color:dk?'#999':'#555',font:{size:11}},grid:{display:false}},
-            y:{ticks:{color:dk?'#666':'#999',font:{size:10},stepSize:1},grid:{color:dk?'#222':'#eee'}}
-          }
-        }
-      });
-      _charts.push(ch2);
-    });
+    const groups = split(summary, ({ record }) => ({ key: record.semesterId }));
+    box.append(table(['Семестр', 'Выполнено', 'Получено', 'Ожидается к оплате', 'В работе'], semesters.map(sem => {
+      const group = groups.get(sem.id) || { doneRows: [], paidRows: [], waiting: [], open: [] };
+      const first = summary.active.reduce((min, row) =>
+        row.record.semesterId === sem.id && row.firstKnown && row.firstKnown <= range.to &&
+        (!min || row.firstKnown < min) ? row.firstKnown : min, '');
+      const cell = element('div', 'report-semester-cell');
+      cell.append(button(sem.label, () => App.navigate('analytics', sem.id), { size: 'sm' }));
+      cell.append(element('small', '', first ? `Первая известная дата: ${S.formatDay(first)}` : 'До этой даты записей нет'));
+      return [cell, group.doneRows.length, amountText(group.paidRows), amountText(group.waiting), group.open.length];
+    })));
+    content.appendChild(box);
   }
 
-  /* ══ Chart helpers ═════════════════════════════ */
-  function _dk(){ const t=document.documentElement.getAttribute('data-theme'); return t!=='white'; }
-
-  function _barH(canvas, entries) {
-    if(!window.Chart) return;
-    const dk=_dk();
-    const ch=new Chart(canvas,{
-      type:'bar',
-      data:{
-        labels:entries.map(([k])=>k),
-        datasets:[{data:entries.map(([,v])=>v.sum),backgroundColor:entries.map((_,i)=>PAL[i%PAL.length]),borderRadius:3}]
-      },
-      options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',
-        plugins:{legend:{display:false}},
-        scales:{
-          x:{ticks:{color:dk?'#666':'#999',callback:v=>v+'₴',font:{size:10}},grid:{color:dk?'#222':'#eee'}},
-          y:{ticks:{color:dk?'#999':'#555',font:{size:11}},grid:{display:false}}
-        }
-      }
+  function qualityPanel(content, semesterId, issues) {
+    const details = element('details', 'report-panel report-quality');
+    details.append(element('summary', '', 'Качество данных'));
+    const list = element('ul');
+    issues.forEach(([label, rows]) => {
+      const item = element('li');
+      item.append(element('span', '', label), button(String(rows.length), () => openRecords(semesterId, rows, label),
+        { size: 'sm', title: `Открыть записи: ${label}` }));
+      list.appendChild(item);
     });
-    _charts.push(ch);
+    details.appendChild(list);
+    content.appendChild(details);
   }
 
-  function _donut(canvas, entries, valFn=(v=>v.sum)) {
-    if(!window.Chart) return;
-    const dk=_dk();
-    const labels=entries.map(([k])=>k);
-    const data  =entries.map(([,v])=>valFn(v));
-    const ch=new Chart(canvas,{
-      type:'doughnut',
-      data:{labels,datasets:[{data,backgroundColor:labels.map((_,i)=>PAL[i%PAL.length]),hoverOffset:6}]},
-      options:{responsive:true,maintainAspectRatio:false,
-        plugins:{legend:{position:'right',labels:{color:dk?'#999':'#555',font:{size:11},boxWidth:12}}}
-      }
-    });
-    _charts.push(ch);
-  }
-
-  /* ══ Stats ═════════════════════════════════════ */
-  function _stats(recs) {
-    const done  =recs.filter(r=>r.doneDate);
-    const paid  =recs.filter(r=>r.paidDate);
-    const closed=recs.filter(r=>r.doneDate&&r.paidDate);
-    const unpaid=recs.filter(r=>!r.paidDate);
-    const paidSum  =paid.reduce((s,r)=>s+(r.price||0),0);
-    const unpaidSum=unpaid.reduce((s,r)=>s+(r.price||0),0);
-    const avg      =recs.length?recs.reduce((s,r)=>s+(r.price||0),0)/recs.length:0;
-
-    const byClient={};
-    recs.forEach(r=>{
-      if(!r.client) return;
-      if(!byClient[r.client]) byClient[r.client]={count:0,sum:0,paidSum:0,subjects:new Set()};
-      byClient[r.client].count++; byClient[r.client].sum+=r.price||0;
-      if(r.paidDate) byClient[r.client].paidSum+=r.price||0;
-      byClient[r.client].subjects.add(r.subject);
-    });
-
-    const bySubject={};
-    recs.forEach(r=>{
-      if(!r.subject) return;
-      if(!bySubject[r.subject]) bySubject[r.subject]={count:0,sum:0};
-      bySubject[r.subject].count++; bySubject[r.subject].sum+=r.price||0;
-    });
-
-    return {
-      total:recs.length, doneCount:done.length, paidCount:paid.length,
-      closedCount:closed.length, unpaidCount:unpaid.length,
-      paidSum, unpaidSum, avg,
-      clientCount:Object.keys(byClient).length,
-      subjectCount:Object.keys(bySubject).length,
-      byClient, bySubject
-    };
-  }
-
-  /* ══ Summary table ═════════════════════════════ */
-  function _summaryTable(s) {
-    const tw=document.createElement('div'); tw.className='table-wrapper';
-    const t=document.createElement('table'); t.className='summary-table';
-    t.innerHTML=`<thead><tr>
-      <th class="no-sort">Заказчик</th><th class="no-sort" style="text-align:right">Работ</th>
-      <th class="no-sort" style="text-align:right">Сумма</th><th class="no-sort" style="text-align:right">Ср. цена</th>
-      <th class="no-sort" style="text-align:right">Оплачено</th>
-    </tr></thead>`;
-    const tb=document.createElement('tbody');
-    let tc=0,ts=0,tp=0;
-    Object.entries(s.byClient).sort((a,b)=>b[1].sum-a[1].sum).forEach(([cli,d])=>{
-      const tr=document.createElement('tr');
-      tr.innerHTML=`<td>${_esc(cli)}</td><td class="td-num">${d.count}</td><td class="td-num accent-green">${d.sum} ₴</td><td class="td-num">${d.count?Math.round(d.sum/d.count):0} ₴</td><td class="td-num accent-blue">${d.paidSum} ₴</td>`;
-      tb.appendChild(tr); tc+=d.count; ts+=d.sum; tp+=d.paidSum;
-    });
-    const tot=document.createElement('tr'); tot.className='grand-total';
-    tot.innerHTML=`<td>Итого</td><td class="td-num">${tc}</td><td class="td-num accent-green">${ts} ₴</td><td class="td-num">${tc?Math.round(ts/tc):0} ₴</td><td class="td-num accent-blue">${tp} ₴</td>`;
-    tb.appendChild(tot); t.appendChild(tb); tw.appendChild(t); return tw;
-  }
-
-  /* ══ DOM helpers ═══════════════════════════════ */
-  function _wrapCard(parent, title, heightWrap, canvas, extraClass='') {
-    const card=document.createElement('div'); card.className='card'+(extraClass?' '+extraClass:'');
-    card.innerHTML=`<div class="card-header"><h3>${title}</h3></div>`;
-    heightWrap.appendChild(canvas); card.appendChild(heightWrap);
-    parent.appendChild(card);
-  }
-
-  function _isoWeek(d) {
-    const date=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));
-    const day=date.getUTCDay()||7;
-    date.setUTCDate(date.getUTCDate()+4-day);
-    const yearStart=new Date(Date.UTC(date.getUTCFullYear(),0,1));
-    return Math.ceil((((date-yearStart)/86400000)+1)/7);
-  }
-
-  function _esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-  return {mount};
+  return { mount };
 })();
-
-window.AnalyticsView=AnalyticsView;

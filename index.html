@@ -13,8 +13,6 @@
 href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&display=swap"
     rel="stylesheet">
 
-  <!-- Chart.js -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 
   <!-- ══ Themes — load ALL, active one activates via :root[data-theme] ══ -->
   <link rel="stylesheet" href="css/themes/dark_theme.css">
@@ -32,6 +30,7 @@ href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&d
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/layout.css">
   <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/reports.css">
 </head>
 
 <body>
@@ -56,12 +55,12 @@ href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&d
   <!-- ══ Toast container ══ -->
   <div id="toast-container"></div>
 
-  <!-- ══ JS modules (order: storage → ui → views → app) ══ -->
+  <!-- ══ JS modules ══ -->
+  <script src="js/statistics.js"></script>
   <script src="js/storage.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/view-records.js"></script>
   <script src="js/view-analytics.js"></script>
-  <script src="js/view-dashboard.js"></script>
   <script src="js/app.js"></script>
 
 </body>

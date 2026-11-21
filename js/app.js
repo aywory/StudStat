@@ -131,7 +131,7 @@ const App = (() => {
   }
 
   /* ══ Navigation ════════════════════════════════ */
-  function navigate(view, semId = null) {
+  function navigate(view, semId = null, options = {}) {
     if (_view === 'records') RecordsView.unmount();
     _view = view; _semId = semId;
     _buildSidebar();
@@ -139,9 +139,10 @@ const App = (() => {
     document.getElementById('workspace-filters').replaceChildren();
     const main = document.getElementById('main');
     main.innerHTML = '';
+    main.scrollTop = 0;
     switch (view) {
-      case 'dashboard': DashboardView.mount(main); break;
-      case 'records': RecordsView.mount(semId, main); break;
+      case 'dashboard': AnalyticsView.mount(null, main); break;
+      case 'records': RecordsView.mount(semId, main, options); break;
       case 'analytics': AnalyticsView.mount(semId, main); break;
       case 'semesters': _mountSemesters(main); break;
     }
@@ -324,10 +325,9 @@ const App = (() => {
       const grid = document.createElement('div'); grid.className = 'grid-3 mt-md';
       sems.forEach(sem => {
         const recs = Storage.getRecords(sem.id);
-        const sum = recs.reduce((s, r) => s + (r.price || 0), 0);
-        const paid = recs.filter(r => r.doneDate && r.paidDate).reduce((s, r) => s + (r.price || 0), 0);
+        const totals = Statistics.ledgerTotals(recs);
         const card = document.createElement('div'); card.className = 'card';
-        card.innerHTML = `<div class="card-header"><h3>${_esc(sem.label)}</h3></div><p style="font-size:.8rem;margin-bottom:.75rem">${recs.length} работ · сумма ${sum} ₴ · оплачено ${paid} ₴</p>`;
+        card.innerHTML = `<div class="card-header"><h3>${_esc(sem.label)}</h3></div><p style="font-size:.8rem;margin-bottom:.75rem">Работ: ${totals.count} · сумма ${Statistics.money(totals.total)} · получено ${Statistics.money(totals.paid)}</p>`;
         const acts = document.createElement('div'); acts.className = 'flex gap-sm';
         acts.appendChild(UI.Button({ text: 'Учёт', variant: 'blue', size: 'sm', onClick: () => navigate('records', sem.id) }));
         acts.appendChild(UI.Button({ text: 'Аналитика', variant: 'ghost', size: 'sm', onClick: () => navigate('analytics', sem.id) }));

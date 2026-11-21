@@ -281,9 +281,10 @@ const Storage = (() => {
   /* ══ Data helpers ═══════════════════════════ */
   function _uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
   function _norm(r) {
+    const cents = Statistics.toCents(r.price);
     return {
       ...r,
-      price: +(r.price ?? 0) || 0,
+      price: cents !== null ? cents / 100 : r.price ?? null,
       taskNum: String(r.taskNum ?? '').trim(),
       doneDate: String(r.doneDate ?? ''),
       paidDate: String(r.paidDate ?? ''),

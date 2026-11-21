@@ -7,17 +7,21 @@ const RecordsView = (() => {
   let _sort = { f: 'createdAt', d: 'asc' };
   let _page = 1;
   let _rowLayout;
+  let _subset = null;
   const PER = 30;
 
   // Column index map for Tab navigation
   const EDITABLE_COLS = [1, 2, 3, 4, 5, 6, 8]; // subject,taskNum,client,price,doneDate,paidDate,notes
 
   /* ══ Mount ══════════════════════════════════ */
-  function mount(semId, container) {
+  function mount(semId, container, { ids, label, focusId } = {}) {
     _semId = semId; _page = 1;
+    _subset = ids ? { ids: new Set(ids), label } : null;
     container.innerHTML = '';
     container.appendChild(_shell());
-    _reload();
+    _recs = Storage.getRecords(_semId);
+    _filter({ reveal: focusId });
+    if (focusId) _showRow(focusId);
   }
 
   function unmount() {
@@ -25,10 +29,6 @@ const RecordsView = (() => {
     document.querySelector('.note-dialog')?.remove();
   }
 
-  function _reload() {
-    _recs = Storage.getRecords(_semId);
-    _filter();
-  }
 
   /* ══ Shell ══════════════════════════════════ */
   function _shell() {
@@ -36,7 +36,7 @@ const RecordsView = (() => {
     page.className = 'records-page';
     const semester = Storage.getSemesters().find(s => s.id === _semId);
     const title = document.createElement('h2');
-    title.textContent = semester ? `Семестр «${semester.label}»` : 'Семестр';
+    title.textContent = semester ? `Семестр «${semester.label}»` : 'Все работы';
     title.title = title.textContent;
     document.getElementById('workspace-title').appendChild(title);
     document.getElementById('workspace-filters').appendChild(_makeFilters());
@@ -47,6 +47,20 @@ const RecordsView = (() => {
     const pagination = document.createElement('div');
     pagination.className = 'pagination';
     pagination.id = 'rpg';
+    if (_subset) {
+      const context = document.createElement('div');
+      context.className = 'record-report-scope';
+      const caption = document.createElement('strong');
+      caption.textContent = _subset.label;
+      const clear = UI.Button({ text: 'Показать весь журнал', size: 'sm', onClick: () => {
+        _subset = null;
+        _page = 1;
+        context.remove();
+        _filter();
+      } });
+      context.append(caption, clear);
+      page.appendChild(context);
+    }
     page.append(viewport, pagination);
     return page;
   }
@@ -122,24 +136,36 @@ const RecordsView = (() => {
     const sub = document.getElementById('rsub').value;
     const cli = document.getElementById('rcli').value;
     const st = document.getElementById('rst').value;
+    const today = Statistics.localDay();
 
     _filt = _recs.filter(r => {
+      if (_subset && !_subset.ids.has(r.id)) return false;
       if (sub && r.subject !== sub) return false;
       if (cli && r.client !== cli) return false;
-      if (st === 'закрыто' && !(r.doneDate && r.paidDate)) return false;
-      if (st === 'не закрыто' && (r.doneDate && r.paidDate)) return false;
-      if (st === 'не оплачено' && !!r.paidDate) return false;
+      if (st) {
+        const row = Statistics.entry(r);
+        const done = row.done && row.done <= today;
+        const paid = row.paid && row.paid <= today;
+        if (st === 'закрыто' && !(done && paid)) return false;
+        if (st === 'не закрыто' && done && paid) return false;
+        if (st === 'не оплачено' && paid) return false;
+      }
       if (q && !`${r.subject} ${r.taskNum} ${r.client} ${r.notes}`.toLowerCase().includes(q)) return false;
       return true;
     });
     _filt = [..._filt].sort((a, b) => {
       let va = a[_sort.f] ?? '', vb = b[_sort.f] ?? '';
-      if (_sort.f === 'price') { va = +va; vb = +vb; } else { va = String(va).toLowerCase(); vb = String(vb).toLowerCase(); }
+      if (_sort.f === 'price') {
+        va = Statistics.toCents(va) ?? -1;
+        vb = Statistics.toCents(vb) ?? -1;
+      } else { va = String(va).toLowerCase(); vb = String(vb).toLowerCase(); }
       return _sort.d === 'asc' ? (va < vb ? -1 : va > vb ? 1 : 0) : (va > vb ? -1 : va < vb ? 1 : 0);
     });
-    if (reveal) {
+    if (reveal && _recs.some(rec => rec.id === reveal)) {
       const index = _filt.findIndex(rec => rec.id === reveal);
       if (index === -1) {
+        _subset = null;
+        document.querySelector('.record-report-scope')?.remove();
         document.getElementById('rs').value = '';
         ['rsub', 'rcli', 'rst'].forEach(id => { document.getElementById(id).selectedIndex = 0; });
         _filter({ reveal });
@@ -210,19 +236,21 @@ const RecordsView = (() => {
       firstCell.tabIndex = 0;
       firstCell.addEventListener('focus', () => firstCell.click());
     }
-    const addRow = body.insertRow();
-    addRow.className = 'new-record-row';
-    const addCell = addRow.insertCell();
-    addCell.colSpan = table.rows[0].cells.length;
-    addCell.appendChild(UI.Button({
-      text: 'Новая строка', icon: UI.Icon('plus'), className: 'new-record-button', onClick: _addRow
-    }));
-    addCell.firstChild.addEventListener('keydown', event => {
-      const lastRecord = addRow.previousElementSibling;
-      if (event.key !== 'Tab' || !event.shiftKey || !lastRecord) return;
-      event.preventDefault();
-      _focusCell(lastRecord.cells[EDITABLE_COLS.at(-1)]);
-    });
+    if (_semId && !_subset && Storage.getSemesters().some(sem => sem.id === _semId)) {
+      const addRow = body.insertRow();
+      addRow.className = 'new-record-row';
+      const addCell = addRow.insertCell();
+      addCell.colSpan = table.rows[0].cells.length;
+      addCell.appendChild(UI.Button({
+        text: 'Новая строка', icon: UI.Icon('plus'), className: 'new-record-button', onClick: _addRow
+      }));
+      addCell.firstChild.addEventListener('keydown', event => {
+        const lastRecord = addRow.previousElementSibling;
+        if (event.key !== 'Tab' || !event.shiftKey || !lastRecord) return;
+        event.preventDefault();
+        _focusCell(lastRecord.cells[EDITABLE_COLS.at(-1)]);
+      });
+    }
     canvas.append(table, actions);
     viewport.replaceChildren(canvas);
     const clipActions = () => {
@@ -249,23 +277,17 @@ const RecordsView = (() => {
   function _updateTotals() {
     const row = document.querySelector('#rtw .records-totals');
     if (!row) return;
-    let price = 0;
-    let paid = 0;
-    _filt.forEach(rec => {
-      const amount = Number(rec.price) || 0;
-      price += amount;
-      if (rec.paidDate) paid += amount;
-    });
-    row.querySelector('[data-total-count]').textContent = `Итого · ${_filt.length}`;
-    row.querySelector('[data-total-price]').textContent = _formatPrice(price);
-    row.querySelector('[data-total-paid]').textContent = _formatPrice(paid);
+    const totals = Statistics.ledgerTotals(_filt);
+    row.querySelector('[data-total-count]').textContent = `Итого · ${totals.count}`;
+    row.querySelector('[data-total-price]').textContent = Statistics.money(totals.total);
+    row.querySelector('[data-total-paid]').textContent = Statistics.money(totals.paid);
   }
 
   function _addRowActions(layer, row, rec) {
     const group = document.createElement('div');
     group.className = 'record-actions';
     group.append(
-      UI.Button({ icon: UI.Icon('copy'), title: 'Дублировать строку', onClick: () => _dupRow(rec) }),
+      UI.Button({ icon: UI.Icon('copy'), title: 'Копировать как новую работу', onClick: () => _dupRow(rec) }),
       UI.Button({ icon: UI.Icon('trash'), variant: 'danger', title: 'Удалить строку', onClick: () => _del(rec.id) })
     );
     layer.appendChild(group);
@@ -331,8 +353,8 @@ const RecordsView = (() => {
       _editCell(td, input, [display], () => {
         const value = input.value.trim();
         _saveField(rec, field, value);
-        display.textContent = value;
-        td.title = value;
+        display.textContent = rec[field];
+        td.title = rec[field];
         if (dl) _rebuildFilters();
       });
     });
@@ -343,20 +365,26 @@ const RecordsView = (() => {
     const td = document.createElement('td');
     td.className = 'editable td-num';
     const display = document.createElement('span');
-    display.textContent = rec[field] ? _formatPrice(rec[field]) : '—';
+    const draw = () => {
+      const cents = Statistics.toCents(rec[field]);
+      display.textContent = cents === null ? '—' : Statistics.money(cents);
+    };
+    draw();
     td.appendChild(display);
     td.addEventListener('click', () => {
       if (td.querySelector('.cell-input')) return;
       const input = document.createElement('input');
-      input.type = 'number';
       input.inputMode = 'decimal';
-      input.min = '0';
-      input.step = 'any';
-      input.value = rec[field] || '';
+      input.value = rec[field] ?? '';
       _editCell(td, input, [display], () => {
-        const value = Number(input.value) || 0;
-        _saveField(rec, field, value);
-        display.textContent = value ? _formatPrice(value) : '—';
+        const value = input.value.trim();
+        const cents = Statistics.toCents(value);
+        if (value && cents === null) {
+          if (value !== String(rec[field])) UI.toast('Введите цену числом, например 120,50', 'warn');
+          return;
+        }
+        _saveField(rec, field, cents === null ? null : cents / 100);
+        draw();
       });
     });
     return td;
@@ -483,9 +511,9 @@ const RecordsView = (() => {
 
   function _saveField(rec, field, value) {
     if (rec[field] === value) return;
-    rec[field] = value;
-    Storage.updateRecord(rec.id, { [field]: value });
-    if (field === 'price' || field === 'paidDate') _updateTotals();
+    const saved = Storage.updateRecord(rec.id, { [field]: value });
+    if (saved) Object.assign(rec, saved);
+    _updateTotals();
   }
 
   function _pillPair(rec) {
@@ -579,7 +607,9 @@ const RecordsView = (() => {
 
     const edge = forward ? EDITABLE_COLS[0] : EDITABLE_COLS.at(-1);
     if (_focusAdjacentRow(row, edge, forward)) return;
-    if (forward) document.querySelector('#rtw .new-record-button')?.focus();
+    if (forward) {
+      (document.querySelector('#rtw .new-record-button') || document.querySelector('#rtw .record-actions button'))?.focus();
+    }
     else [...document.querySelectorAll('#rtw .sort-button')].at(-1)?.focus();
   }
 
@@ -613,7 +643,7 @@ const RecordsView = (() => {
 
   function _addRow() {
     const rec = Storage.addRecord({
-      semesterId: _semId, client: '', subject: '', taskNum: '', price: 0,
+      semesterId: _semId, client: '', subject: '', taskNum: '', price: null,
       doneDate: '', paidDate: '', notes: ''
     });
     _recs = Storage.getRecords(_semId);
@@ -624,14 +654,21 @@ const RecordsView = (() => {
   }
 
   function _dupRow(rec) {
-    const copy = { ...rec, id: undefined, createdAt: undefined };
-    const newRec = Storage.addRecord({ ...copy, semesterId: _semId });
+    const { semesterId, client, subject, taskNum, price, notes } = rec;
+    const newRec = Storage.addRecord({ semesterId, client, subject, taskNum, price, notes, doneDate: '', paidDate: '' });
     _recs = Storage.getRecords(_semId); _filter({ reveal: newRec.id });
-    requestAnimationFrame(() => {
-      const tr = document.querySelector(`tr[data-id="${newRec.id}"]`);
-      tr?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    });
-    UI.toast('Строка дублирована');
+    _showRow(newRec.id);
+    UI.toast('Работа скопирована');
+  }
+
+  function _showRow(id) {
+    const row = [...document.querySelectorAll('#rtw tr[data-id]')].find(item => item.dataset.id === String(id));
+    if (!row) return;
+    row.tabIndex = -1;
+    row.classList.add('record-report-focus');
+    row.addEventListener('blur', () => row.classList.remove('record-report-focus'), { once: true });
+    row.focus({ preventScroll: true });
+    row.scrollIntoView({ block: 'nearest' });
   }
 
   async function _del(id) {
@@ -653,9 +690,7 @@ const RecordsView = (() => {
     _syncFilterMenu();
   }
   function _fmt(d) { if (!d) return '—'; try { return new Date(d + 'T00:00:00').toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: '2-digit' }); } catch { return d; } }
-  function _today() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
-  const priceFormat = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 });
-  function _formatPrice(value) { return priceFormat.format(value) + ' ₴'; }
+  const _today = Statistics.localDay;
 
   return { mount, unmount };
 })();
