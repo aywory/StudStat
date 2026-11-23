@@ -379,9 +379,10 @@ canvas { max-width: 100% !important; height: auto !important; }
   scroll-padding-top: 5rem;
 }
 .records-canvas {
+  --record-gutter: 6.45rem;
   position: relative;
-  min-width: 60rem;
-  padding-right: 5rem;
+  width: calc(46rem + var(--record-gutter));
+  padding-right: var(--record-gutter);
 }
 .records-table {
   table-layout: fixed;
@@ -390,6 +391,12 @@ canvas { max-width: 100% !important; height: auto !important; }
   border-radius: 7px;
   border-collapse: separate;
 }
+.record-col-number { width: 2.3rem; }
+.record-col-subject { width: 8.4rem; }
+.record-col-task { width: 5.8rem; }
+#rtw :is([data-f="price"], [data-f="taskNum"]) .sort-button { padding-inline: .47rem; gap: .2rem; }
+.record-col-price { width: 5.8rem; }
+.record-col-date { width: 8.05rem; }
 .records-table thead {
   position: sticky; top: 0; z-index: 2;
   background: var(--table-heading-surface);
@@ -428,7 +435,11 @@ canvas { max-width: 100% !important; height: auto !important; }
   white-space: nowrap;
 }
 .records-totals [data-total-count], .records-totals .text-right { color: var(--text-secondary); }
-.records-totals [data-total-price] { color: var(--accent-green); }
+.records-totals [data-total-price] {
+  color: var(--accent-green);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .records-totals [data-total-paid] { color: var(--accent-blue); }
 .records-table .editable {
   overflow: hidden;
@@ -446,28 +457,55 @@ canvas { max-width: 100% !important; height: auto !important; }
 .records-table .cell-input[type="number"] { appearance: textfield; }
 .records-table .cell-input::-webkit-inner-spin-button { appearance: none; }
 .records-table .td-num input { text-align: right; }
-.records-table .status-pair { white-space: nowrap; }
-.records-table .status-pill { padding: .16rem .4rem; font-family: inherit; }
-.records-table :is(.pill-done-off, .pill-paid-off) {
-  background: transparent;
-  color: var(--text-secondary);
+.records-table .record-date { padding-inline: .4rem; }
+.record-date-group {
+  display: grid; grid-template-columns: 1.75rem minmax(0, 1fr);
+  align-items: center; column-gap: .25rem;
 }
-.records-table .status-pill::before {
+.record-switch, .record-date-value {
+  display: grid; place-items: center; min-height: 2rem;
+  border: 0; border-radius: .25rem; background: transparent;
+  color: var(--text-secondary); cursor: pointer;
+}
+.record-switch::before {
   content: '';
-  width: .36rem; height: .36rem;
-  border: 1px solid currentColor; border-radius: 50%;
+  width: 1.55rem; height: .86rem; grid-area: 1 / 1;
+  border: 1px solid var(--text-muted); border-radius: 1rem;
+  background: var(--bg-input);
 }
-.records-table .pill-done-on::before, .records-table .pill-paid-on::before { background: currentColor; }
-.records-table .today-button {
-  margin-left: .25rem;
-  padding: .1rem;
-  border: 0;
-  color: var(--accent-blue);
-  opacity: 0;
-  vertical-align: middle;
+.record-switch::after {
+  content: '';
+  width: .5rem; height: .5rem; grid-area: 1 / 1;
+  border-radius: 50%; background: var(--text-secondary);
+  transform: translateX(-.3rem); transition: transform .13s ease;
 }
-.records-table .today-button[hidden] { display: none; }
-.records-table tr:hover .today-button { opacity: 1; }
+.record-switch[aria-checked="true"]::before {
+  border-color: var(--accent-green);
+  background: color-mix(in srgb, var(--accent-green) 23%, var(--bg-input));
+}
+.record-switch[aria-checked="true"]::after {
+  background: var(--accent-green); transform: translateX(.3rem);
+}
+.record-date-value {
+  justify-items: start;
+  padding-inline: .23rem;
+  font: 500 .71rem/1 var(--font-body);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.record-date-value.is-empty { color: var(--text-muted); }
+.record-date-value.is-future { color: var(--accent-yellow); }
+.record-date-value:hover, .record-switch:hover { background: var(--bg-hover); color: var(--text-primary); }
+.record-date-input {
+  min-width: 0; width: 100%; min-height: 2rem;
+  padding-inline: .15rem;
+  border: 1px solid var(--accent-blue); border-radius: .25rem;
+  outline: 0;
+  background: var(--raised-surface); color: var(--text-primary);
+  font: 500 .73rem/1 var(--font-body);
+  font-variant-numeric: tabular-nums;
+}
+.record-date-input::-webkit-calendar-picker-indicator { width: .7rem; margin: 0; padding: 0; cursor: pointer; }
 .records-table .new-record-row td { padding: 0; }
 .records-table .new-record-button {
   width: 100%;
@@ -477,21 +515,17 @@ canvas { max-width: 100% !important; height: auto !important; }
   border: 0;
   color: var(--text-secondary);
 }
-.records-table .record-notes { padding: 0; }
-#rtw .note-preview {
-  display: block;
-  width: 100%; min-height: 2.55rem;
-  padding: .3rem .7rem;
-  border: 0;
+#rtw .record-note {
+  opacity: 1;
   background: transparent; backdrop-filter: none;
-  color: var(--text-muted);
-  text-align: left; text-overflow: ellipsis;
-  white-space: nowrap; overflow: hidden;
-  font: inherit;
+  border-color: transparent;
+  color: var(--text-secondary);
 }
-#rtw .note-preview.has-note { color: var(--text-secondary); }
-#rtw .note-preview:hover { background: var(--bg-hover); color: var(--text-primary); }
-#rtw .note-preview:focus-visible { outline-offset: -2px; }
+#rtw .record-note.has-note {
+  color: var(--accent-blue);
+  background: color-mix(in srgb, var(--accent-blue) 11%, transparent);
+}
+#rtw .record-note:hover { background: var(--bg-hover); color: var(--text-primary); }
 .note-dialog {
   position: fixed; inset: 0;
   margin: auto;
@@ -514,26 +548,26 @@ canvas { max-width: 100% !important; height: auto !important; }
 }
 .note-dialog-actions { display: flex; justify-content: flex-end; gap: .45rem; }
 .record-actions-layer {
-  position: absolute; inset: 0 0 0 auto; width: 5rem;
+  position: absolute; inset: 0 0 0 auto; width: var(--record-gutter);
   pointer-events: none;
   clip-path: inset(var(--records-action-clip, 0px) 0 0);
 }
 .record-actions {
   position: absolute; left: 0; right: 0;
-  display: flex; align-items: center; gap: .25rem;
-  padding-left: .4rem;
-  opacity: 0;
+  display: flex; align-items: center; gap: .22rem;
+  padding-left: .35rem;
   pointer-events: auto;
+}
+.record-actions .btn:not(.record-note) {
+  opacity: 0;
   transition: opacity .12s;
 }
-.record-actions.row-active, .record-actions:hover, .record-actions:focus-within {
-  opacity: 1;
-}
+.record-actions:is(.row-active, :hover, :focus-within) .btn:not(.record-note) { opacity: 1; }
 #rtw tr.actions-active > td { background: var(--bg-row-hover); }
-.record-actions .btn { width: 1.95rem; height: 1.95rem; padding: 0; }
+.record-actions .btn { width: 1.85rem; height: 1.95rem; padding: 0; flex: none; }
 .record-actions .ui-icon { width: 1.1rem; height: 1.1rem; }
 @media (hover: none) {
-  .record-actions, .records-table .today-button { opacity: 1; }
+  .record-actions .btn:not(.record-note) { opacity: 1; }
 }
 
 #app-controls .theme-dropdown, #modal-backdrop .modal, #modal-backdrop .modal-header {

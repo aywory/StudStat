@@ -20,7 +20,7 @@ const UI = (() => {
     "trash": "M4 7h16 M9 7V4h6v3 M6 7l1 13h10l1-13 M10 10v6 M14 10v6",
     "close": "M6 6l12 12 M18 6 6 18",
     "plus": "M12 5v14 M5 12h14",
-    "today": "M12 3v3 M12 18v3 M3 12h3 M18 12h3 M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0z",
+    "note": "M5 4h14v11l-5 5H5z M14 20v-5h5 M8 8h8 M8 12h6",
     "sort": "M8 9l4-4 4 4 M8 15l4 4 4-4",
     "up": "M8 14l4-4 4 4",
     "down": "M8 10l4 4 4-4"

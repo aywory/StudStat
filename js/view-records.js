@@ -9,9 +9,12 @@ const RecordsView = (() => {
   let _rowLayout;
   let _subset = null;
   const PER = 30;
+  const MAX_PRICE = 99999 * 100;
+  const NOTE = -1;
+  const noteButtons = new WeakMap();
 
   // Column index map for Tab navigation
-  const EDITABLE_COLS = [1, 2, 3, 4, 5, 6, 8]; // subject,taskNum,client,price,doneDate,paidDate,notes
+  const EDITABLE_COLS = [1, 2, 3, 4, 5, 6, NOTE];
 
   /* ══ Mount ══════════════════════════════════ */
   function mount(semId, container, { ids, label, focusId } = {}) {
@@ -189,22 +192,23 @@ const RecordsView = (() => {
 
     const table = document.createElement('table');
     table.className = 'records-table';
-    table.innerHTML = `<thead><tr>
-      <th scope="col" class="no-sort" style="width:3rem">#</th>
-      <th scope="col" data-f="subject" style="width:11%">Предмет</th>
-      <th scope="col" data-f="taskNum" style="width:9%">Задача</th>
-      <th scope="col" data-f="client" style="width:14%">Заказчик</th>
-      <th scope="col" data-f="price" class="td-num" style="width:9%">Цена</th>
-      <th scope="col" data-f="doneDate" style="width:13%">Выполнено</th>
-      <th scope="col" data-f="paidDate" style="width:13%">Оплачено</th>
-      <th scope="col" class="no-sort" style="width:15%">Статус</th>
-      <th scope="col" data-f="notes">Заметки</th>
+    table.innerHTML = `<colgroup>
+      <col class="record-col-number"><col class="record-col-subject"><col class="record-col-task">
+      <col class="record-col-client"><col class="record-col-price">
+      <col class="record-col-date"><col class="record-col-date">
+    </colgroup><thead><tr>
+      <th scope="col" class="no-sort">#</th>
+      <th scope="col" data-f="subject">Предмет</th>
+      <th scope="col" data-f="taskNum">Задача</th>
+      <th scope="col" data-f="client">Заказчик</th>
+      <th scope="col" data-f="price" class="td-num">Цена, ${Statistics.currency}</th>
+      <th scope="col" data-f="doneDate">Выполнено</th>
+      <th scope="col" data-f="paidDate">Оплачено</th>
     </tr><tr class="records-totals">
       <td colspan="4" data-total-count></td>
       <td class="td-num" data-total-price></td>
-      <td colspan="2" class="text-right">Оплачено</td>
+      <td class="text-right">Получено</td>
       <td class="td-num" data-total-paid></td>
-      <td></td>
     </tr></thead>`;
     table.querySelectorAll('th[data-f]').forEach(th => {
       const field = th.dataset.f;
@@ -248,7 +252,7 @@ const RecordsView = (() => {
         const lastRecord = addRow.previousElementSibling;
         if (event.key !== 'Tab' || !event.shiftKey || !lastRecord) return;
         event.preventDefault();
-        _focusCell(lastRecord.cells[EDITABLE_COLS.at(-1)]);
+        _focusCell(lastRecord, NOTE, false);
       });
     }
     canvas.append(table, actions);
@@ -279,14 +283,19 @@ const RecordsView = (() => {
     if (!row) return;
     const totals = Statistics.ledgerTotals(_filt);
     row.querySelector('[data-total-count]').textContent = `Итого · ${totals.count}`;
-    row.querySelector('[data-total-price]').textContent = Statistics.money(totals.total);
+    const totalPrice = row.querySelector('[data-total-price]');
+    totalPrice.textContent = Statistics.amount(totals.total);
+    totalPrice.title = Statistics.money(totals.total);
     row.querySelector('[data-total-paid]').textContent = Statistics.money(totals.paid);
   }
 
   function _addRowActions(layer, row, rec) {
     const group = document.createElement('div');
     group.className = 'record-actions';
+    const note = _noteButton(row, rec);
+    noteButtons.set(row, note);
     group.append(
+      note,
       UI.Button({ icon: UI.Icon('copy'), title: 'Копировать как новую работу', onClick: () => _dupRow(rec) }),
       UI.Button({ icon: UI.Icon('trash'), variant: 'danger', title: 'Удалить строку', onClick: () => _del(rec.id) })
     );
@@ -317,10 +326,6 @@ const RecordsView = (() => {
     tr.appendChild(_dateCell(rec, 'doneDate'));
     tr.appendChild(_dateCell(rec, 'paidDate'));
 
-    const ts = document.createElement('td'); ts.appendChild(_pillPair(rec)); tr.appendChild(ts);
-    tr.appendChild(_notesCell(rec));
-
-    /* Row actions: duplicate + delete */
     return tr;
   }
 
@@ -367,7 +372,8 @@ const RecordsView = (() => {
     const display = document.createElement('span');
     const draw = () => {
       const cents = Statistics.toCents(rec[field]);
-      display.textContent = cents === null ? '—' : Statistics.money(cents);
+      display.textContent = cents === null ? '—' : Statistics.amount(cents);
+      display.title = cents === null ? '' : display.textContent;
     };
     draw();
     td.appendChild(display);
@@ -383,6 +389,10 @@ const RecordsView = (() => {
           if (value !== String(rec[field])) UI.toast('Введите цену числом, например 120,50', 'warn');
           return;
         }
+        if (cents > MAX_PRICE && cents !== Statistics.toCents(rec[field])) {
+          UI.toast('Максимальная цена — 99 999 ₽', 'warn');
+          return;
+        }
         _saveField(rec, field, cents === null ? null : cents / 100);
         draw();
       });
@@ -391,62 +401,106 @@ const RecordsView = (() => {
   }
 
   function _dateCell(rec, field) {
-    const td = document.createElement('td');
-    td.className = 'editable accent-muted record-date';
-    const display = document.createElement('span');
-    display.textContent = _fmt(rec[field]);
-    const today = UI.Button({ icon: UI.Icon('today'), title: 'Отметить сегодня', className: 'today-button',
-      onClick: event => {
-        event.stopPropagation();
-        _saveField(rec, field, _today());
-        display.textContent = _fmt(rec[field]);
-        today.hidden = true;
-        _refreshRowPills(td, rec);
-      }
+    const cell = document.createElement('td');
+    cell.className = 'record-date';
+    const group = document.createElement('div');
+    group.className = 'record-date-group';
+    const label = field === 'doneDate' ? 'Выполнено' : 'Оплачено';
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'record-switch';
+    toggle.tabIndex = -1;
+    toggle.setAttribute('role', 'switch');
+    toggle.setAttribute('aria-label', label);
+
+    const date = document.createElement('button');
+    date.type = 'button';
+    date.className = 'record-date-value';
+    date.tabIndex = -1;
+
+    function draw() {
+      const value = Statistics.day(rec[field]);
+      const checked = Boolean(value && value <= _today());
+      toggle.setAttribute('aria-checked', String(checked));
+      toggle.title = checked ? 'Снять отметку и очистить дату' : 'Поставить сегодняшнюю дату';
+      date.textContent = value ? _fmt(value) : 'дд.мм.гг';
+      date.classList.toggle('is-empty', !value);
+      date.classList.toggle('is-future', Boolean(value && !checked));
+      date.setAttribute('aria-label', `${label}. ${value ? _fmt(value) : 'Дата не указана'}. Редактировать дату`);
+      date.title = rec[field] && !value ? 'Некорректная дата. Нажмите, чтобы исправить' : date.getAttribute('aria-label');
+    }
+
+    toggle.addEventListener('click', () => {
+      _saveField(rec, field, toggle.getAttribute('aria-checked') === 'true' ? '' : _today());
+      draw();
     });
-    today.tabIndex = -1;
-    today.hidden = Boolean(rec[field]);
-    td.append(display, today);
-    td.addEventListener('click', () => {
-      if (td.querySelector('.cell-input')) return;
+    toggle.addEventListener('keydown', event => {
+      if (event.key !== 'Tab') return;
+      event.preventDefault();
+      if (event.shiftKey) _focusNext(cell, false);
+      else date.focus();
+    });
+    date.addEventListener('keydown', event => {
+      if (event.key !== 'Tab') return;
+      event.preventDefault();
+      if (event.shiftKey) toggle.focus();
+      else _focusNext(cell, true);
+    });
+    date.addEventListener('click', () => {
       const input = document.createElement('input');
       input.type = 'date';
-      input.value = rec[field] || '';
-      _editCell(td, input, [display, today], () => {
-        _saveField(rec, field, input.value);
-        display.textContent = _fmt(rec[field]);
-        today.hidden = Boolean(rec[field]);
-        _refreshRowPills(td, rec);
+      const original = Statistics.day(rec[field]);
+      input.value = original;
+      input.className = 'record-date-input';
+      input.setAttribute('aria-label', field === 'doneDate' ? 'Дата выполнения' : 'Дата оплаты');
+      date.replaceWith(input);
+      input.focus();
+
+      function finish(save) {
+        input.removeEventListener('blur', blur);
+        if (save && input.validity.valid && input.value !== original) _saveField(rec, field, input.value);
+        draw();
+        input.replaceWith(date);
+      }
+
+      const blur = () => finish(true);
+      input.addEventListener('blur', blur);
+      input.addEventListener('keydown', event => {
+        if (!['Tab', 'Enter', 'Escape'].includes(event.key)) return;
+        event.preventDefault();
+        finish(event.key !== 'Escape');
+        if (event.key === 'Tab' && event.shiftKey) toggle.focus();
+        else if (event.key === 'Tab') _focusNext(cell, true);
+        else date.focus();
       });
     });
-    return td;
+
+    draw();
+    group.append(toggle, date);
+    cell.appendChild(group);
+    return cell;
   }
 
-  function _notesCell(rec) {
-    const cell = document.createElement('td');
-    cell.className = 'record-notes';
-    const button = UI.Button({ className: 'note-preview', onClick: () => _editNote(cell, rec, draw) });
+  function _noteButton(row, rec) {
+    const button = UI.Button({ icon: UI.Icon('note'), className: 'record-note',
+      onClick: () => _editNote(row, rec, button, draw) });
     button.tabIndex = -1;
     function draw() {
-      const note = rec.notes || '';
-      button.textContent = note || '—';
-      button.classList.toggle('has-note', Boolean(note));
-      button.setAttribute('aria-label', note ? `Редактировать заметку. ${note}` : 'Добавить заметку');
+      const hasNote = Boolean(String(rec.notes ?? '').trim());
+      button.classList.toggle('has-note', hasNote);
+      button.title = hasNote ? 'Редактировать заметку' : 'Добавить заметку';
+      button.setAttribute('aria-label', button.title);
     }
     button.addEventListener('keydown', event => {
       if (event.key !== 'Tab') return;
       event.preventDefault();
-      _focusNext(cell, !event.shiftKey);
+      _focusAcross(row, NOTE, !event.shiftKey);
     });
     draw();
-    cell.appendChild(button);
-    cell.addEventListener('click', event => {
-      if (event.target === cell) button.click();
-    });
-    return cell;
+    return button;
   }
 
-  function _editNote(cell, rec, draw) {
+  function _editNote(row, rec, button, draw) {
     const dialog = document.createElement('dialog');
     dialog.className = 'note-dialog';
     dialog.setAttribute('aria-labelledby', 'note-title');
@@ -464,7 +518,7 @@ const RecordsView = (() => {
     const input = dialog.querySelector('textarea');
     input.value = rec.notes || '';
     dialog.querySelector('.note-context').textContent =
-      [rec.subject, rec.taskNum, rec.client].filter(Boolean).join(' · ') || `Строка ${cell.parentElement.cells[0].textContent}`;
+      [rec.subject, rec.taskNum, rec.client].filter(Boolean).join(' · ') || `Строка ${row.cells[0].textContent}`;
     const save = dialog.querySelector('[value="save"]');
     input.addEventListener('keydown', event => {
       if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
@@ -478,7 +532,7 @@ const RecordsView = (() => {
         draw();
       }
       dialog.remove();
-      cell.querySelector('button')?.focus();
+      button.focus();
     }, { once: true });
     document.body.appendChild(dialog);
     dialog.showModal();
@@ -516,107 +570,40 @@ const RecordsView = (() => {
     _updateTotals();
   }
 
-  function _pillPair(rec) {
-    const pair = document.createElement('div');
-    pair.className = 'status-pair';
-    const fields = ['doneDate', 'paidDate'];
-    fields.forEach(field => {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.dataset.field = field;
-      button.addEventListener('click', () => {
-        const refresh = () => {
-          _refreshRowDate(button, field, rec);
-          _drawPill(button, rec);
-        };
-        if (rec[field]) {
-          _datePop(button, rec, field, refresh);
-          return;
-        }
-        _saveField(rec, field, _today());
-        refresh();
-      });
-      _drawPill(button, rec);
-      pair.appendChild(button);
-    });
-    return pair;
-  }
-
-  function _drawPill(button, rec) {
-    const field = button.dataset.field;
-    const done = field === 'doneDate';
-    const date = rec[field];
-    const label = done ? 'Выполнено' : 'Оплачено';
-    const action = done ? 'Отметить выполнение' : 'Отметить оплату';
-    button.className = `status-pill pill-${done ? 'done' : 'paid'}-${date ? 'on' : 'off'}`;
-    button.textContent = done ? 'Вып.' : 'Опл.';
-    button.title = date ? `${label} ${_fmt(date)}` : action;
-    button.setAttribute('aria-label', button.title);
-  }
-
-  function _refreshRowPills(cell, rec) {
-    cell.closest('tr').querySelectorAll('.status-pill').forEach(button => _drawPill(button, rec));
-  }
-
-  function _refreshRowDate(pillEl, field, rec) {
-    const tr = pillEl.closest('tr'); if (!tr) return;
-    const idx = field === 'doneDate' ? 5 : 6;
-    const sp = tr.cells[idx]?.querySelector('span');
-    if (sp) sp.textContent = _fmt(rec[field]);
-    const today = tr.cells[idx]?.querySelector('.today-button');
-    if (today) today.hidden = Boolean(rec[field]);
-  }
-
-  function _datePop(anchor, rec, field, onDone) {
-    document.getElementById('dpop')?.remove();
-    const pop = document.createElement('div'); pop.id = 'dpop';
-    pop.style.cssText = 'position:fixed;z-index:9200;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:.75rem;box-shadow:0 8px 24px rgba(0,0,0,.4);display:flex;flex-direction:column;gap:.5rem;min-width:190px';
-    const lbl = document.createElement('div'); lbl.style.cssText = 'font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted)';
-    lbl.textContent = field === 'doneDate' ? 'Дата выполнения' : 'Дата оплаты'; pop.appendChild(lbl);
-    const inp = document.createElement('input'); inp.type = 'date'; inp.className = 'cell-input'; inp.value = rec[field] || ''; pop.appendChild(inp);
-    const row = document.createElement('div'); row.style.cssText = 'display:flex;gap:.4rem';
-    row.appendChild(UI.Button({
-      text: 'Очистить', variant: 'danger', size: 'sm', onClick: () => {
-        _saveField(rec, field, ''); _refreshRowDate(anchor, field, rec); onDone(); pop.remove();
-      }
-    }));
-    row.appendChild(UI.Button({
-      text: 'OK', variant: 'primary', size: 'sm', onClick: () => {
-        _saveField(rec, field, inp.value); _refreshRowDate(anchor, field, rec); onDone(); pop.remove();
-      }
-    }));
-    pop.appendChild(row);
-    document.body.appendChild(pop);
-    const r = anchor.getBoundingClientRect();
-    pop.style.top = Math.min(r.bottom + 4, window.innerHeight - 160) + 'px';
-    pop.style.left = Math.min(r.left, window.innerWidth - 200) + 'px';
-    inp.focus();
-    const close = e => { if (!pop.contains(e.target) && e.target !== anchor) { pop.remove(); document.removeEventListener('mousedown', close); } };
-    setTimeout(() => document.addEventListener('mousedown', close), 0);
-  }
-
   /* ══ Keyboard navigation ═════════════════════ */
   function _focusNext(cell, forward) {
-    const index = EDITABLE_COLS.indexOf(cell.cellIndex);
+    _focusAcross(cell.parentElement, cell.cellIndex, forward);
+  }
+
+  function _focusAcross(row, current, forward) {
+    const index = EDITABLE_COLS.indexOf(current);
     const column = EDITABLE_COLS[index + (forward ? 1 : -1)];
-    const row = cell.parentElement;
     if (column !== undefined) {
-      _focusCell(row.cells[column]);
+      _focusCell(row, column, forward);
       return;
     }
 
-    const edge = forward ? EDITABLE_COLS[0] : EDITABLE_COLS.at(-1);
+    const edge = forward ? EDITABLE_COLS[0] : NOTE;
     if (_focusAdjacentRow(row, edge, forward)) return;
     if (forward) {
-      (document.querySelector('#rtw .new-record-button') || document.querySelector('#rtw .record-actions button'))?.focus();
+      (document.querySelector('#rtw .new-record-button') || document.querySelector('#rtw .record-actions button:not(.record-note)'))?.focus();
+    } else {
+      [...document.querySelectorAll('#rtw .sort-button')].at(-1)?.focus();
     }
-    else [...document.querySelectorAll('#rtw .sort-button')].at(-1)?.focus();
   }
 
-  function _focusCell(cell) {
-    const note = cell.querySelector('.note-preview');
-    if (note) note.focus();
-    else cell.click();
+  function _focusCell(row, column, forward) {
+    if (column === NOTE) {
+      noteButtons.get(row)?.focus();
+      return;
+    }
+    const cell = row.cells[column];
+    if (cell.classList.contains('record-date')) {
+      const control = cell.querySelector(forward ? '.record-switch' : '.record-date-value, .record-date-input');
+      control.focus();
+      return;
+    }
+    cell.click();
   }
 
   function _focusBelow(cell) {
@@ -626,7 +613,7 @@ const RecordsView = (() => {
   function _focusAdjacentRow(row, column, forward) {
     const adjacent = forward ? row.nextElementSibling : row.previousElementSibling;
     if (adjacent?.matches('tr[data-id]')) {
-      _focusCell(adjacent.cells[column]);
+      _focusCell(adjacent, column, forward);
       return true;
     }
 
@@ -637,7 +624,7 @@ const RecordsView = (() => {
     _page = page;
     _renderTable();
     const rows = viewport.querySelectorAll('tbody tr[data-id]');
-    _focusCell(rows[forward ? 0 : rows.length - 1].cells[column]);
+    _focusCell(rows[forward ? 0 : rows.length - 1], column, forward);
     return true;
   }
 

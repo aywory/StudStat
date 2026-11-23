@@ -1,6 +1,7 @@
 // Calendar dates and prices as integer kopecks, shared by the views.
 const Statistics = (() => {
   const DAY = 86400000;
+  const currency = '₽';
   const moneyFormat = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 });
   const dateFormat = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
   const monthFormat = new Intl.DateTimeFormat('ru-RU', { month: 'long', year: 'numeric', timeZone: 'UTC' });
@@ -30,9 +31,8 @@ const Statistics = (() => {
     return Number.isSafeInteger(amount) ? amount : null;
   }
 
-  function money(cents) {
-    return moneyFormat.format(cents / 100) + '\u00a0₴';
-  }
+  const amount = cents => moneyFormat.format(cents / 100);
+  const money = cents => amount(cents) + '\u00a0' + currency;
 
   function formatDay(value) {
     return value ? dateFormat.format(new Date(value)) : '—';
@@ -178,6 +178,6 @@ const Statistics = (() => {
 
   const age = (date, asOf) => Math.round((+new Date(asOf) - +new Date(date)) / DAY);
 
-  return { day, localDay, shiftDay, toCents, money, formatDay, entry, getRange, sum, summarize,
+  return { day, localDay, shiftDay, toCents, amount, money, currency, formatDay, entry, getRange, sum, summarize,
     ledgerTotals, median, quality, buckets, age };
 })();
