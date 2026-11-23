@@ -5,17 +5,14 @@
 :root[data-theme] {
   --font-body: "Golos Text", system-ui, sans-serif;
   --font-display: var(--font-body);
-  --surface-base: var(--bg-card);
+  --surface-base: var(--theme-surface, var(--bg-card));
   --raised-surface: linear-gradient(var(--bg-card), var(--bg-card)), var(--surface-base);
   --table-heading-surface: linear-gradient(var(--bg-thead), var(--bg-thead)), var(--surface-base);
   color-scheme: light;
 }
-:root:is([data-theme="dark"], [data-theme="glassmorphism"], [data-theme="bioluminescent-bay"], [data-theme="bioluminescent-bay-premium"]) {
+:root:is([data-theme="dark"], [data-theme="glassmorphism"], [data-theme="bioluminescent-bay"]) {
   color-scheme: dark;
 }
-:root[data-theme="glassmorphism"] { --surface-base: #1c202f; }
-:root[data-theme="bioluminescent-bay"] { --surface-base: #0e2036; }
-:root[data-theme="bioluminescent-bay-premium"] { --surface-base: #081726; }
 :focus-visible {
   outline: 2px solid var(--accent-blue);
   outline-offset: 2px;

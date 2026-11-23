@@ -21,8 +21,10 @@ const App = (() => {
 
   /* ══ Init ══════════════════════════════════════ */
   async function init() {
-    _applyTheme(localStorage.getItem('uchet_theme') || 'dark');
     _themes = _discoverThemes();
+    const saved = localStorage.getItem('uchet_theme');
+    const theme = saved === 'bioluminescent-bay-premium' ? 'bioluminescent-bay' : saved;
+    _applyTheme(_themes.some(item => item.id === theme) ? theme : 'dark');
     _buildModalShell();
     _buildControls();
     _buildNavTooltip();
