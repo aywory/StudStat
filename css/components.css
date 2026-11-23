@@ -334,7 +334,7 @@ canvas { max-width: 100% !important; height: auto !important; }
 .records-page .pagination:empty { display: none; }
 .records-filters {
   display: flex; align-items: center; gap: .4rem;
-  width: clamp(14rem, 32vw, 25rem);
+  width: clamp(18rem, 37vw, 31rem);
   max-width: 100%;
 }
 .records-filters .search-wrap { min-width: 0; }
@@ -370,8 +370,30 @@ canvas { max-width: 100% !important; height: auto !important; }
 }
 .record-filter-panel .form-label { color: var(--text-secondary); }
 .record-filter-panel button { justify-self: end; }
+.record-jumps { display: grid; grid-template-columns: repeat(2, 2.45rem); gap: .2rem; }
+.record-jump[data-edge="bottom"] { grid-column: 2; }
+.records-filters .record-jump, .records-filters .record-add {
+  width: 2.45rem; height: 2.45rem;
+  padding: 0; flex: none;
+}
+.record-jump[hidden] { display: none; }
+.record-jumps[hidden], .records-filters .record-add[hidden] { display: none; }
+#workspace-filters .record-add {
+  background: color-mix(in srgb, var(--accent-yellow) 21%, var(--surface-base));
+  border-color: color-mix(in srgb, var(--accent-yellow) 60%, var(--border));
+  color: var(--text-primary);
+}
+#workspace-filters .record-add:hover {
+  background: color-mix(in srgb, var(--accent-yellow) 36%, var(--surface-base));
+}
+.record-add .ui-icon { width: 1.4rem; height: 1.4rem; }
 @media (max-width: 560px) {
   .records-filters { width: 100%; }
+  .record-filter-trigger > span:not(.filter-count) { display: none; }
+  .record-filter-panel { left: 50%; right: auto; transform: translateX(-50%); width: min(15rem, calc(100vw - 5rem)); }
+}
+@media (max-width: 390px) {
+  .record-filter-panel { position: fixed; inset: 5.6rem .75rem auto auto; transform: none; }
 }
 .records-scroll {
   min-height: 0;
@@ -462,30 +484,19 @@ canvas { max-width: 100% !important; height: auto !important; }
   display: grid; grid-template-columns: 1.75rem minmax(0, 1fr);
   align-items: center; column-gap: .25rem;
 }
-.record-switch, .record-date-value {
+.record-date-value {
   display: grid; place-items: center; min-height: 2rem;
   border: 0; border-radius: .25rem; background: transparent;
   color: var(--text-secondary); cursor: pointer;
 }
-.record-switch::before {
-  content: '';
-  width: 1.55rem; height: .86rem; grid-area: 1 / 1;
-  border: 1px solid var(--text-muted); border-radius: 1rem;
-  background: var(--bg-input);
+.record-checkbox {
+  width: 1rem; height: 1rem;
+  margin: 0;
+  justify-self: center;
+  cursor: pointer;
+  accent-color: var(--accent-blue);
 }
-.record-switch::after {
-  content: '';
-  width: .5rem; height: .5rem; grid-area: 1 / 1;
-  border-radius: 50%; background: var(--text-secondary);
-  transform: translateX(-.3rem); transition: transform .13s ease;
-}
-.record-switch[aria-checked="true"]::before {
-  border-color: var(--accent-green);
-  background: color-mix(in srgb, var(--accent-green) 23%, var(--bg-input));
-}
-.record-switch[aria-checked="true"]::after {
-  background: var(--accent-green); transform: translateX(.3rem);
-}
+.record-checkbox[data-field="paidDate"] { accent-color: var(--accent-green); }
 .record-date-value {
   justify-items: start;
   padding-inline: .23rem;
@@ -495,7 +506,7 @@ canvas { max-width: 100% !important; height: auto !important; }
 }
 .record-date-value.is-empty { color: var(--text-muted); }
 .record-date-value.is-future { color: var(--accent-yellow); }
-.record-date-value:hover, .record-switch:hover { background: var(--bg-hover); color: var(--text-primary); }
+.record-date-value:hover { background: var(--bg-hover); color: var(--text-primary); }
 .record-date-input {
   min-width: 0; width: 100%; min-height: 2rem;
   padding-inline: .15rem;
@@ -506,15 +517,6 @@ canvas { max-width: 100% !important; height: auto !important; }
   font-variant-numeric: tabular-nums;
 }
 .record-date-input::-webkit-calendar-picker-indicator { width: .7rem; margin: 0; padding: 0; cursor: pointer; }
-.records-table .new-record-row td { padding: 0; }
-.records-table .new-record-button {
-  width: 100%;
-  min-height: 2.65rem;
-  justify-content: flex-start;
-  padding-inline: .7rem;
-  border: 0;
-  color: var(--text-secondary);
-}
 #rtw .record-note {
   opacity: 1;
   background: transparent; backdrop-filter: none;

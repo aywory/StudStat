@@ -29,6 +29,8 @@ const RecordsView = (() => {
 
   function unmount() {
     _rowLayout?.disconnect();
+    const active = document.activeElement;
+    if (active?.matches('#rtw input')) active.blur();
     document.querySelector('.note-dialog')?.remove();
   }
 
@@ -42,7 +44,7 @@ const RecordsView = (() => {
     title.textContent = semester ? `Семестр «${semester.label}»` : 'Все работы';
     title.title = title.textContent;
     document.getElementById('workspace-title').appendChild(title);
-    document.getElementById('workspace-filters').appendChild(_makeFilters());
+    document.getElementById('workspace-filters').appendChild(_makeFilters(Boolean(semester)));
 
     const viewport = document.createElement('div');
     viewport.className = 'records-scroll';
@@ -68,7 +70,7 @@ const RecordsView = (() => {
     return page;
   }
 
-  function _makeFilters() {
+  function _makeFilters(canAdd) {
     const bar = document.createElement('div');
     bar.className = 'records-filters';
     const search = document.createElement('div');
@@ -82,6 +84,7 @@ const RecordsView = (() => {
     details.className = 'record-filter-menu';
     const summary = document.createElement('summary');
     summary.className = 'record-filter-trigger';
+    summary.setAttribute('aria-label', 'Фильтры');
     summary.innerHTML = `${UI.Icon('filter')}<span>Фильтры</span><span class="filter-count" hidden></span>`;
     const panel = document.createElement('div');
     panel.className = 'record-filter-panel';
@@ -121,6 +124,23 @@ const RecordsView = (() => {
     details.append(summary, panel);
     search.appendChild(input);
     bar.append(search, details);
+    const jumps = document.createElement('div');
+    jumps.className = 'record-jumps';
+    jumps.hidden = true;
+    for (const [edge, label] of [['top', 'К первой строке'], ['bottom', 'К последней строке']]) {
+      const jump = UI.Button({ icon: UI.Icon(edge), title: label, className: 'record-jump', onClick: () => _jumpToRow(edge) });
+      jump.dataset.edge = edge;
+      jump.setAttribute('aria-controls', 'rtw');
+      jump.hidden = true;
+      jumps.appendChild(jump);
+    }
+    bar.appendChild(jumps);
+    if (canAdd) {
+      const add = UI.Button({ icon: UI.Icon('plus'), title: 'Новая строка',
+        className: 'record-add', onClick: _addRow });
+      add.setAttribute('aria-controls', 'rtw');
+      bar.appendChild(add);
+    }
     return bar;
   }
 
@@ -240,42 +260,56 @@ const RecordsView = (() => {
       firstCell.tabIndex = 0;
       firstCell.addEventListener('focus', () => firstCell.click());
     }
-    if (_semId && !_subset && Storage.getSemesters().some(sem => sem.id === _semId)) {
-      const addRow = body.insertRow();
-      addRow.className = 'new-record-row';
-      const addCell = addRow.insertCell();
-      addCell.colSpan = table.rows[0].cells.length;
-      addCell.appendChild(UI.Button({
-        text: 'Новая строка', icon: UI.Icon('plus'), className: 'new-record-button', onClick: _addRow
-      }));
-      addCell.firstChild.addEventListener('keydown', event => {
-        const lastRecord = addRow.previousElementSibling;
-        if (event.key !== 'Tab' || !event.shiftKey || !lastRecord) return;
-        event.preventDefault();
-        _focusCell(lastRecord, NOTE, false);
-      });
-    }
     canvas.append(table, actions);
     viewport.replaceChildren(canvas);
-    const clipActions = () => {
+    const onScroll = () => {
       const clippedHeight = viewport.scrollTop + table.tHead.offsetHeight;
       actions.style.setProperty('--records-action-clip', clippedHeight + 'px');
+      _syncRowControls(viewport);
     };
     const layoutActions = () => {
       const top = actions.getBoundingClientRect().top;
       actionPositions.forEach(position => position(top));
-      clipActions();
+      onScroll();
     };
-    viewport.onscroll = clipActions;
+    viewport.onscroll = onScroll;
     layoutActions();
     _rowLayout = new ResizeObserver(layoutActions);
     _rowLayout.observe(table);
+    _rowLayout.observe(viewport);
     [...body.rows].forEach(row => _rowLayout.observe(row));
     _updateTotals();
     UI.renderPagination(document.getElementById('rpg'), {
       total: _filt.length, page: _page, perPage: PER,
       onChange: page => { _page = page; viewport.scrollTop = 0; _renderTable(); }
     });
+  }
+
+  function _syncRowControls(viewport) {
+    const jumps = document.querySelector('.record-jumps');
+    const lastPage = Math.ceil(_filt.length / PER);
+    const maxScroll = viewport.scrollHeight - viewport.clientHeight;
+    const above = _page > 1 || viewport.scrollTop > 1;
+    const below = _page < lastPage || viewport.scrollTop < maxScroll - 1;
+    jumps.hidden = _filt.length < 2 || (lastPage === 1 && maxScroll <= 1);
+    jumps.querySelector('[data-edge="top"]').hidden = !above;
+    jumps.querySelector('[data-edge="bottom"]').hidden = !below;
+    const add = document.querySelector('.record-add');
+    if (add) add.hidden = Boolean(_subset);
+  }
+
+  function _jumpToRow(edge) {
+    const top = edge === 'top';
+    const page = top ? 1 : Math.ceil(_filt.length / PER);
+    if (page !== _page) {
+      _page = page;
+      _renderTable();
+    }
+    const viewport = document.getElementById('rtw');
+    const rows = viewport.querySelector('tbody').rows;
+    _highlightRow(rows[top ? 0 : rows.length - 1]);
+    viewport.scrollTop = top ? 0 : viewport.scrollHeight;
+    _syncRowControls(viewport);
   }
 
   function _updateTotals() {
@@ -406,11 +440,11 @@ const RecordsView = (() => {
     const group = document.createElement('div');
     group.className = 'record-date-group';
     const label = field === 'doneDate' ? 'Выполнено' : 'Оплачено';
-    const toggle = document.createElement('button');
-    toggle.type = 'button';
-    toggle.className = 'record-switch';
+    const toggle = document.createElement('input');
+    toggle.type = 'checkbox';
+    toggle.className = 'record-checkbox';
+    toggle.dataset.field = field;
     toggle.tabIndex = -1;
-    toggle.setAttribute('role', 'switch');
     toggle.setAttribute('aria-label', label);
 
     const date = document.createElement('button');
@@ -421,7 +455,7 @@ const RecordsView = (() => {
     function draw() {
       const value = Statistics.day(rec[field]);
       const checked = Boolean(value && value <= _today());
-      toggle.setAttribute('aria-checked', String(checked));
+      toggle.checked = checked;
       toggle.title = checked ? 'Снять отметку и очистить дату' : 'Поставить сегодняшнюю дату';
       date.textContent = value ? _fmt(value) : 'дд.мм.гг';
       date.classList.toggle('is-empty', !value);
@@ -430,8 +464,8 @@ const RecordsView = (() => {
       date.title = rec[field] && !value ? 'Некорректная дата. Нажмите, чтобы исправить' : date.getAttribute('aria-label');
     }
 
-    toggle.addEventListener('click', () => {
-      _saveField(rec, field, toggle.getAttribute('aria-checked') === 'true' ? '' : _today());
+    toggle.addEventListener('change', () => {
+      _saveField(rec, field, toggle.checked ? _today() : '');
       draw();
     });
     toggle.addEventListener('keydown', event => {
@@ -586,7 +620,7 @@ const RecordsView = (() => {
     const edge = forward ? EDITABLE_COLS[0] : NOTE;
     if (_focusAdjacentRow(row, edge, forward)) return;
     if (forward) {
-      (document.querySelector('#rtw .new-record-button') || document.querySelector('#rtw .record-actions button:not(.record-note)'))?.focus();
+      document.querySelector('#rtw .record-actions button:not(.record-note)')?.focus();
     } else {
       [...document.querySelectorAll('#rtw .sort-button')].at(-1)?.focus();
     }
@@ -599,7 +633,7 @@ const RecordsView = (() => {
     }
     const cell = row.cells[column];
     if (cell.classList.contains('record-date')) {
-      const control = cell.querySelector(forward ? '.record-switch' : '.record-date-value, .record-date-input');
+      const control = cell.querySelector(forward ? '.record-checkbox' : '.record-date-value, .record-date-input');
       control.focus();
       return;
     }
@@ -651,11 +685,16 @@ const RecordsView = (() => {
   function _showRow(id) {
     const row = [...document.querySelectorAll('#rtw tr[data-id]')].find(item => item.dataset.id === String(id));
     if (!row) return;
+    _highlightRow(row);
+    row.scrollIntoView({ block: 'nearest' });
+  }
+
+  function _highlightRow(row) {
+    if (!row) return;
     row.tabIndex = -1;
     row.classList.add('record-report-focus');
     row.addEventListener('blur', () => row.classList.remove('record-report-focus'), { once: true });
     row.focus({ preventScroll: true });
-    row.scrollIntoView({ block: 'nearest' });
   }
 
   async function _del(id) {
